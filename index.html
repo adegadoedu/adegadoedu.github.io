@@ -170,12 +170,6 @@ body.entregando .hud,body.entregando #selos,body.entregando #cobrancas,body.entr
 .ent-moedas{display:flex;gap:6px;align-items:center;font-weight:900}
 .ent-contagem{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:'Lilita One',sans-serif;font-size:6rem;color:#FFC93C;-webkit-text-stroke:10px #2A1A12;paint-order:stroke fill;text-shadow:0 7px 0 #2A1A12;z-index:6}
 .ent-dica{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);width:min(92vw,520px);text-align:center;background:rgba(255,255,255,.94);color:#2A1A12;border:3px solid var(--contorno);border-radius:16px;padding:10px 12px;font-weight:900;font-size:.95rem;z-index:6}
-.ent-topo{justify-content:center}
-.ent-info{display:flex;gap:6px;align-items:center;font-weight:900;font-size:1.05rem}
-#entTempoBox.urgente{background:#E8433A;color:#fff;animation:pulo .8s ease-in-out infinite}
-.ent-batida{position:fixed;left:50%;top:30%;transform:translateX(-50%);font-family:'Lilita One',sans-serif;font-size:2.4rem;color:#fff;-webkit-text-stroke:7px #2A1A12;paint-order:stroke fill;z-index:6}
-#joyEnt{position:fixed;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:rgba(255,255,255,.28);border:4px solid rgba(42,26,18,.55);z-index:6;pointer-events:none}
-#joyBola{position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;background:#FFC93C;border:4px solid #2A1A12;box-shadow:0 4px 0 #2A1A12}
 .ped-itens{list-style:none;padding:0;margin:8px 0 10px;display:grid;gap:6px}
 .ped-itens li{background:var(--painel2);border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:900}
 #btnRanking,#btnPersonagem,#btnSair{font-size:1.15rem;padding:4px 10px;cursor:pointer}
@@ -280,15 +274,12 @@ body:not(.jogando) .alerta{display:none}
 
 <div id="hudEnt" aria-live="polite">
   <div class="ent-topo">
-    <div class="pilula ent-info" id="entTempoBox"><span>⏱</span><b id="entTempo">0:00</b></div>
-    <div class="pilula ent-info"><span>📍</span><b id="entDist">0 m</b></div>
-    <div class="pilula ent-info"><span>🪙</span><b id="entMoedas">0</b></div>
+    <div class="ent-pista"><div class="ent-barra" id="entBarra"></div><span class="ent-moto" id="entMoto">🛵</span><span class="ent-casa">🏠</span></div>
+    <div class="pilula ent-moedas"><span>🪙</span><b id="entMoedas">0</b></div>
     <button class="pilula" id="btnAbandonar" type="button" aria-label="Desistir da entrega">✕</button>
   </div>
-  <div class="ent-batida" id="entBatida" hidden>💥 −3 s</div>
-  <div id="joyEnt" hidden><div id="joyBola"></div></div>
   <div class="ent-contagem" id="contagemEnt" hidden>3</div>
-  <div class="ent-dica" id="dicaEnt" hidden>Arraste o dedo na direção em que quer ir. Siga a seta amarela até o 📍 do cliente!</div>
+  <div class="ent-dica" id="dicaEnt" hidden>Deslize ⬅️ ➡️ para trocar de faixa · ⬆️ pular · ⬇️ abaixar</div>
 </div>
 
 <section class="tela" id="telaPedido" hidden>
@@ -309,7 +300,6 @@ body:not(.jogando) .alerta{display:none}
     <h2 class="titulo centro" id="fimTitulo" style="font-size:2.1rem">Entrega feita!</h2>
     <p class="txt centro" id="fimTexto"></p>
     <div class="stat"><span>Pedido</span><b id="fimPedido">0</b></div>
-    <div class="stat"><span>Gorjeta pela rapidez</span><b id="fimGorjeta">0</b></div>
     <div class="stat"><span>Moedas</span><b id="fimMoedas">0</b></div>
     <div class="stat destaque"><span>Total</span><b id="fimTotal">0</b></div>
     <p class="txt centro" style="font-size:.85rem;color:var(--sub)">Entregas feitas: <b id="fimFeitas">0</b></p>
@@ -1787,57 +1777,49 @@ $('#btnCartao').addEventListener('click',async()=>{
   finally{ b.disabled=false; }
 });
 
-// ================= Entregas de moto pelo bairro (vista de cima) =================
-var ENT={ativo:false,estado:'',pedido:null,x:0,z:0,h:0,v:0,moedas:0,valorMoeda:10,t:0,tempo:0,tempoTotal:0,alvo:null,inv:0,joy:null,carros:[],moedasObj:[],teclas:{}};
-const FATOR_ENTREGA=1.5, BLOCO=14, RUA=7, QCEL=BLOCO+RUA, NQ=6, MUNDO=NQ*QCEL+RUA, VMAX=15;
+// ================= Entregas de moto (liberadas após todas as tarefas) =================
+var ENT={ativo:false,estado:'',pedido:null,z:0,dist:0,alvo:520,vel:12,lane:1,x:0,y:0,vy:0,desl:0,moedas:0,valorMoeda:10,t:0,obs:[],moedasObj:[],prox:0,chegada:null};
+const FAIXAS=[-1.7,0,1.7], SEG=20, NSEG=8, FATOR_ENTREGA=1.5;
 const entregasLiberadas=()=>S&&S.tarefa>=TAREFAS.length&&!S.falido;
 const cenaEnt=new THREE.Scene();
-cenaEnt.background=new THREE.Color(0xA9D98B);
+cenaEnt.background=new THREE.Color(0xBFE6F2); cenaEnt.fog=new THREE.Fog(0xBFE6F2,42,92);
 cenaEnt.add(new THREE.HemisphereLight(0xFFF6E8,0x7A8A6A,0.8)); cenaEnt.add(new THREE.AmbientLight(0xffffff,0.2));
-const solEnt=new THREE.DirectionalLight(0xFFF2DD,0.7); solEnt.castShadow=true; solEnt.shadow.mapSize.set(1024,1024);
-Object.assign(solEnt.shadow.camera,{left:-34,right:34,top:34,bottom:-34,near:1,far:90}); cenaEnt.add(solEnt); cenaEnt.add(solEnt.target);
-const camEnt=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.5,200);
+const solEnt=new THREE.DirectionalLight(0xFFF2DD,0.7); solEnt.position.set(4,10,4); solEnt.castShadow=true; solEnt.shadow.mapSize.set(1024,1024);
+Object.assign(solEnt.shadow.camera,{left:-8,right:8,top:12,bottom:-12,near:1,far:40}); cenaEnt.add(solEnt); cenaEnt.add(solEnt.target);
+const camEnt=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.1,120);
 addEventListener('resize',()=>{ camEnt.aspect=innerWidth/innerHeight; camEnt.updateProjectionMatrix(); });
-const centroRua=k=>k*QCEL+RUA/2;
 
-// ---------- Bairro (montado uma vez) ----------
-let bairroPronto=false; const quarteiroes=[];
-const texJanelas=[0,1,2].map(k=>texCanvas(128,128,(c)=>{ c.fillStyle=['#F6E7C8','#CFE8F5','#F4D0C8'][k]; c.fillRect(0,0,128,128); for(let y=12;y<120;y+=40) for(let x=12;x<120;x+=40){ c.fillStyle='#2A1A12'; c.fillRect(x-2,y-2,28,26); c.fillStyle=Math.random()<.3?'#FFE38A':'#9FD3EA'; c.fillRect(x,y,24,22);} }));
+// ---------- Rua ----------
+const texRua=texCanvas(256,512,(c)=>{ c.fillStyle='#5E6166'; c.fillRect(0,0,256,512); for(let i=0;i<500;i++){ c.fillStyle=Math.random()<.5?'rgba(255,255,255,.04)':'rgba(0,0,0,.06)'; c.fillRect(Math.random()*256,Math.random()*512,3,3);} c.fillStyle='#F2F2F2'; [85,171].forEach(x=>{ for(let y=0;y<512;y+=128) c.fillRect(x-3,y+20,6,70); }); c.fillStyle='#F2C230'; c.fillRect(4,0,6,512); c.fillRect(246,0,6,512); });
+const texJanelas=[0,1,2].map(k=>texCanvas(128,256,(c)=>{ c.fillStyle=['#F6E7C8','#CFE8F5','#F4D0C8'][k]; c.fillRect(0,0,128,256); for(let y=18;y<240;y+=46) for(let x=14;x<120;x+=40){ c.fillStyle='#2A1A12'; c.fillRect(x-2,y-2,30,32); c.fillStyle=Math.random()<.3?'#FFE38A':'#9FD3EA'; c.fillRect(x,y,26,28);} }));
+texJanelas.forEach(t=>{ t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(1,2); });
 const CORES_PREDIO=[0xF28B82,0xFBBC04,0x81C995,0x78B8E8,0xC5A3E8,0xF6AE7B,0xE8E2D0];
-const ADEGA_Q=[2,2];
-function montarBairro(){
-  if(bairroPronto) return; bairroPronto=true;
-  const asf=new THREE.Mesh(new THREE.PlaneGeometry(MUNDO+40,MUNDO+40),toon(0x5E6166)); asf.rotation.x=-Math.PI/2; asf.position.set(MUNDO/2,0,MUNDO/2); asf.receiveShadow=true; cenaEnt.add(asf);
-  // faixas tracejadas no meio das ruas
-  const matFaixa=toon(0xF2F2F2);
-  for(let k=0;k<=NQ;k++){ for(let p=0;p<MUNDO;p+=4){ bloco(1.6,0.02,0.18,matFaixa,cenaEnt,p+1,0.02,centroRua(k)); bloco(0.18,0.02,1.6,matFaixa,cenaEnt,centroRua(k),0.02,p+1); } }
-  for(let i=0;i<NQ;i++) for(let j=0;j<NQ;j++){
-    const x0=i*QCEL+RUA, z0=j*QCEL+RUA; quarteiroes.push({x0,x1:x0+BLOCO,z0,z1:z0+BLOCO});
-    bloco(BLOCO,0.25,BLOCO,toon(0xC9C4BA),cenaEnt,x0+BLOCO/2,0.125,z0+BLOCO/2,0.02,0.02);
-    if(i===ADEGA_Q[0]&&j===ADEGA_Q[1]){ montarAdega(x0,z0); continue; }
-    for(let a=0;a<2;a++) for(let b=0;b<2;b++){
-      const cx=x0+3.6+a*6.8, cz=z0+3.6+b*6.8;
-      if(Math.random()<0.18){ const gr=new THREE.Mesh(new THREE.BoxGeometry(6,0.06,6),toon(0x7CC46A)); gr.position.set(cx,0.28,cz); cenaEnt.add(gr);
-        for(let t=0;t<2;t++){ const tx=cx+rnd(-1.8,1.8), tz=cz+rnd(-1.8,1.8); malha(new THREE.CylinderGeometry(0.15,0.2,1.2,8),toon(0x7A4E2C),cenaEnt,tx,0.85,tz); const c=malha(ESF,toon(0x4E9E4E),cenaEnt,tx,1.9,tz); c.scale.setScalar(1.0); contorno(c,0.04); } continue; }
-      const h=rnd(2.4,5.2), cor=CORES_PREDIO[Math.floor(Math.random()*CORES_PREDIO.length)];
-      const lado=new THREE.MeshToonMaterial({map:texJanelas[Math.floor(Math.random()*3)],gradientMap:degraus});
-      const p=new THREE.Mesh(new THREE.BoxGeometry(6,h,6),[lado,lado,toon(cor),toon(cor),lado,lado]); p.position.set(cx,0.25+h/2,cz); p.castShadow=true; p.receiveShadow=true; cenaEnt.add(p);
-      bloco(6.2,0.2,6.2,toon(new THREE.Color(cor).multiplyScalar(0.75).getHex()),cenaEnt,cx,0.35+h,cz,0.01,0.01);
-    }
-  }
+const segmentos=[];
+function montarSegmento(seg){
+  while(seg.extras.children.length) seg.extras.remove(seg.extras.children[0]);
+  [-1,1].forEach(l=>{ let z=-SEG/2+1.5; while(z<SEG/2-1){ const w=rnd(3.2,5), h=rnd(3,7.5), d=rnd(3.5,5);
+      const cor=CORES_PREDIO[Math.floor(Math.random()*CORES_PREDIO.length)];
+      const tx=texJanelas[Math.floor(Math.random()*3)];
+      const m=[toon(cor),toon(cor),toon(cor),toon(cor),toon(cor),toon(cor)]; m[l<0?0:1]=new THREE.MeshToonMaterial({map:tx,gradientMap:degraus});
+      const p=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); p.position.set(l*(5.6+w/2),h/2,z+d/2); p.castShadow=true; p.receiveShadow=true; seg.extras.add(p);
+      bloco(w+0.1,0.18,d+0.1,toon(0x2A1A12),seg.extras,l*(5.6+w/2),h+0.09,z+d/2,0.01,0.01);
+      z+=d+rnd(0.3,1.2); }
+    if(Math.random()<0.7){ const ax=l*4.6, az=rnd(-8,8); malha(new THREE.CylinderGeometry(0.06,0.08,3.2,8),toon(0x6B7074),seg.extras,ax,1.6,az); const lp=malha(ESF,toon(0xFFF2B0,{emissive:0x4A4020}),seg.extras,ax-l*0.5,3.15,az); lp.scale.set(0.22,0.12,0.22); bloco(0.6,0.06,0.08,toon(0x6B7074),seg.extras,ax-l*0.3,3.2,az); }
+    if(Math.random()<0.5){ const ax=l*4.7, az=rnd(-8,8); malha(new THREE.CylinderGeometry(0.1,0.13,1.2,8),toon(0x7A4E2C),seg.extras,ax,0.6,az); const c=malha(ESF,toon(0x5BAE5B),seg.extras,ax,1.6,az); c.scale.setScalar(0.75); contorno(c,0.03); }
+  });
 }
-function montarAdega(x0,z0){
-  const g=new THREE.Group(); g.position.set(x0+BLOCO/2,0.25,z0+BLOCO/2); cenaEnt.add(g);
-  const loja=malha(new THREE.BoxGeometry(11,3.4,9),[toon(0xF5F5F1),toon(0xF5F5F1),toon(0x1F4D3A),toon(0x1F4D3A),toon(0xF5F5F1),toon(0xF5F5F1)],g,0,1.7,0); contorno(loja,0.04);
-  bloco(11.2,0.5,9.2,toon(0x1F4D3A),g,0,3.6,0,0.02,0.02);
-  const tl=texCanvas(256,256,(c)=>{ c.fillStyle='#1F4D3A'; c.fillRect(0,0,256,256); });
-  const img=new Image(); img.onload=()=>{ const cv=tl.image.getContext('2d'); cv.save(); cv.beginPath(); cv.arc(128,128,120,0,7); cv.clip(); cv.drawImage(img,8,8,240,240); cv.restore(); tl.needsUpdate=true; }; img.src=LOGO_ADEGA;
-  const placa=malha(new THREE.CircleGeometry(2.6,40),new THREE.MeshBasicMaterial({map:tl}),g,0,4.2,0,false); placa.rotation.x=-Math.PI/2;
-  bloco(4,2.6,0.1,toon(0x8E9396),g,0,1.3,4.52);
+for(let i=0;i<NSEG;i++){
+  const g=new THREE.Group(); cenaEnt.add(g);
+  const rua=malha(new THREE.PlaneGeometry(6.6,SEG),new THREE.MeshToonMaterial({map:texRua,gradientMap:degraus}),g,0,0,0,false); rua.rotation.x=-Math.PI/2; rua.receiveShadow=true;
+  [-1,1].forEach(l=>{ bloco(2.2,0.18,SEG,toon(0xC9C4BA),g,l*4.4,0.09,0,0.01,0.01); bloco(0.14,0.2,SEG,toon(0xE6E1D6),g,l*3.36,0.1,0,0.01,0.01); });
+  const chao=malha(new THREE.PlaneGeometry(40,SEG),toon(0xA9D98B),g,0,-0.02,0,false); chao.rotation.x=-Math.PI/2;
+  const extras=new THREE.Group(); g.add(extras);
+  const seg={g,extras}; segmentos.push(seg);
 }
-function dentroQuarteirao(x,z,m){ for(const q of quarteiroes){ if(x>q.x0-m&&x<q.x1+m&&z>q.z0-m&&z<q.z1+m) return q; } return null; }
+let ruaMontada=false;
+function posicionarSegmentos(){ segmentos.forEach((s,i)=>{ s.g.position.z=-i*SEG+SEG/2; if(!ruaMontada) montarSegmento(s); }); ruaMontada=true; }
 
-// ---------- Moto ----------
+// ---------- Moto com o personagem do jogador ----------
 const moto=new THREE.Group(); cenaEnt.add(moto);
 let motoCorpo=null, rodasMoto=[], piloto=null;
 function montarMoto(){
@@ -1849,46 +1831,66 @@ function montarMoto(){
     const cb=malha(new THREE.CylinderGeometry(0.14,0.14,0.2,14),prata,r,0,0,0,false); cb.rotation.z=Math.PI/2; rodasMoto.push(r); });
   contorno(malha(geoArred(0.42,0.34,1.2,0.12),vermelho,corpo,0,0.62,0),0.02);
   contorno(malha(geoArred(0.46,0.42,0.36,0.1),vermelho,corpo,0,0.86,-0.55),0.02);
+  bloco(0.36,0.1,0.6,preto,corpo,0,0.84,0.15,0.04,0.015);
   bloco(0.72,0.05,0.05,preto,corpo,0,1.1,-0.62);
+  const farol=malha(ESF,toon(0xFFF6B0,{emissive:0x6A5A10}),corpo,0,0.92,-0.74,false); farol.scale.set(0.1,0.1,0.05);
   const bau=new THREE.Group(); bau.position.set(0,1.12,0.52); corpo.add(bau);
-  contorno(malha(geoArred(0.62,0.54,0.56,0.06),toon(0x1F4D3A),bau,0,0,0),0.02);
+  const tl=texCanvas(256,256,(c)=>{ c.fillStyle='#1F4D3A'; c.fillRect(0,0,256,256); });
+  const img=new Image(); img.onload=()=>{ const cv=tl.image.getContext('2d'); cv.save(); cv.beginPath(); cv.arc(128,128,108,0,7); cv.clip(); cv.drawImage(img,20,20,216,216); cv.restore(); tl.needsUpdate=true; }; img.src=LOGO_ADEGA;
+  const mBau=toon(0x1F4D3A), mLogo=new THREE.MeshToonMaterial({map:tl,gradientMap:degraus});
+  const caixa=new THREE.Mesh(geoArred(0.62,0.54,0.56,0.06),mBau); caixa.castShadow=true; bau.add(caixa); contorno(caixa,0.02);
+  malha(new THREE.CircleGeometry(0.22,32),new THREE.MeshBasicMaterial({map:tl}),bau,0,-0.01,0.285,false);
   bloco(0.64,0.05,0.58,toon(0xFFC93C),bau,0,0.29,0);
-  piloto=pessoaV((S.perfil&&S.perfil.visual)||VISUAL_PADRAO); piloto.position.set(0,0.42,0.12); piloto.rotation.y=Math.PI; corpo.add(piloto);
-  const u=piloto.userData; u.pE.rotation.x=-1.25; u.pD.rotation.x=-1.25;
+  piloto=pessoaV((S.perfil&&S.perfil.visual)||VISUAL_PADRAO); piloto.position.set(0,0.42,0.12); corpo.add(piloto);
+  const u=piloto.userData; u.pE.rotation.x=-1.25; u.pD.rotation.x=-1.25; u.pE.position.z=-0.12; u.pD.position.z=-0.12;
   const cor=CORES_ROUPA_V[normalizarVisual(S.perfil&&S.perfil.visual).corRoupa];
   const capacete=malha(ESF,toon(cor===0xF5F5F5||cor===0x1A1A1A?0x2F8FD8:cor),u.corpo,0,POP_HC+0.04,-0.01); capacete.scale.set(0.4,0.36,0.37); contorno(capacete,0.02);
-  moto.scale.setScalar(1.7);
+  const visor=malha(ESF,toon(0x22303A),u.corpo,0,1.24,0.13,false); visor.scale.set(0.22,0.12,0.17);
+  piloto.rotation.y=Math.PI;
 }
-// seta que aponta para o cliente
-const seta=new THREE.Group(); seta.scale.setScalar(1.7); cenaEnt.add(seta);
-(function(){ const m=malha(new THREE.ConeGeometry(0.55,1.3,3),toon(0xFFC93C,{emissive:0x3A2A00}),seta,0,0,0); m.rotation.x=-Math.PI/2; m.scale.y=0.35; contorno(m,0.04); })();
-// pino do destino
-const pino=new THREE.Group(); cenaEnt.add(pino);
-(function(){ const c=malha(new THREE.ConeGeometry(1.1,2.4,24),toon(0xE8433A),pino,0,3.2,0); c.rotation.x=Math.PI; contorno(c,0.05);
-  const b=malha(ESF,toon(0xE8433A),pino,0,4.6,0); b.scale.setScalar(1.25); contorno(b,0.05);
-  const w=malha(ESF,toon(0xFFFFFF),pino,0,4.65,0.9,false); w.scale.setScalar(0.5);
-  const anel=malha(new THREE.RingGeometry(2.2,2.8,40),new THREE.MeshBasicMaterial({color:0xFFC93C,transparent:true,opacity:0.8,side:THREE.DoubleSide}),pino,0,0.05,0,false); anel.rotation.x=-Math.PI/2; })();
-pino.visible=false;
 
-// ---------- Trânsito e moedas ----------
-function criarCarro(){
-  const g=new THREE.Group(); cenaEnt.add(g); const cor=[0x2F8FD8,0xF2F2F2,0xE8433A,0x3CB371,0xFFC93C,0x9B5DE5][Math.floor(Math.random()*6)];
-  contorno(malha(geoArred(1.6,0.6,3.0,0.18),toon(cor),g,0,0.6,0),0.03); contorno(malha(geoArred(1.35,0.5,1.6,0.16),toon(cor),g,0,1.1,0.1),0.03);
-  bloco(1.37,0.32,1.3,toon(0x9FD3EA),g,0,1.1,0.1);
-  [-1,1].forEach(a=>[-1,1].forEach(b=>{ const r=malha(new THREE.CylinderGeometry(0.3,0.3,0.2,14),toon(0x22252A),g,a*0.75,0.3,b*1.0); r.rotation.z=Math.PI/2; }));
-  const eixo=Math.random()<0.5?'x':'z', k=Math.floor(Math.random()*(NQ+1)), dir=Math.random()<0.5?1:-1;
-  const c={g,eixo,dir,pos:rnd(0,MUNDO),fixo:centroRua(k)+dir*1.7*(eixo==='x'?1:-1),vel:rnd(5,8)};
-  g.rotation.y=eixo==='x'?(dir>0?-Math.PI/2:Math.PI/2):(dir>0?Math.PI:0);
-  return c;
+// ---------- Obstáculos e moedas ----------
+const geoCone=new THREE.ConeGeometry(0.28,0.72,16), matCone=toon(0xFF7A1A);
+let _texObras=null; const _matC={}; const toonC=(c,x)=>x?toon(c,x):(_matC[c]||(_matC[c]=toon(c)));
+function criarObstaculo(tipo,faixa,z){
+  const g=new THREE.Group(); g.position.set(FAIXAS[faixa],0,z); cenaEnt.add(g);
+  let len=0.9;
+  if(tipo==='cone'){ [-0.3,0.3].forEach(dx=>{ contorno(malha(geoCone,matCone,g,dx,0.36,0),0.02); bloco(0.5,0.05,0.5,toonC(0x22252A),g,dx,0.025,0); malha(new THREE.CylinderGeometry(0.17,0.2,0.1,16),toonC(0xFFFFFF),g,dx,0.38,0,false); }); }
+  if(tipo==='caixote'){ contorno(malha(geoArred(1.2,0.75,0.85,0.06),toonC(0xB9824A),g,0,0.38,0),0.02); bloco(1.22,0.1,0.87,toonC(0x8B5A2B),g,0,0.38,0); }
+  if(tipo==='buraco'){ const b=malha(new THREE.CircleGeometry(0.75,24),toonC(0x2B2B2B),g,0,0.02,0,false); b.rotation.x=-Math.PI/2; b.scale.set(1,0.75,1);
+    [-0.75,0.75].forEach(dx=>contorno(malha(geoCone,matCone,g,dx,0.36,0.55),0.02)); }
+  if(tipo==='barreira'){ [-0.7,0.7].forEach(dx=>malha(new THREE.CylinderGeometry(0.06,0.06,1.9,8),toonC(0x6B7074),g,dx,0.95,0));
+    const tx=_texObras||(_texObras=texCanvas(256,64,(c)=>{ for(let i=-2;i<12;i++){ c.fillStyle=i%2?'#FFFFFF':'#E8433A'; c.beginPath(); c.moveTo(i*28,0); c.lineTo(i*28+28,0); c.lineTo(i*28,64); c.lineTo(i*28-28,64); c.fill(); } c.fillStyle='#2A1A12'; c.fillRect(70,14,116,36); c.fillStyle='#FFC93C'; c.font="bold 26px Nunito, sans-serif"; c.textAlign='center'; c.textBaseline='middle'; c.fillText('OBRAS',128,33); }));
+    const pl=malha(new THREE.BoxGeometry(1.6,0.5,0.08),[toonC(0xE8433A),toonC(0xE8433A),toonC(0xE8433A),toonC(0xE8433A),new THREE.MeshToonMaterial({map:tx,gradientMap:degraus}),new THREE.MeshToonMaterial({map:tx,gradientMap:degraus})],g,0,1.55,0); contorno(pl,0.02); len=0.5; }
+  if(tipo==='carro'){ const cor=[0x2F8FD8,0xF2F2F2,0xE8433A,0x3CB371,0xFFC93C][Math.floor(Math.random()*5)];
+    contorno(malha(geoArred(1.45,0.6,3.0,0.18),toonC(cor),g,0,0.62,0),0.02); contorno(malha(geoArred(1.25,0.52,1.6,0.16),toonC(cor),g,0,1.15,0.2),0.02);
+    bloco(1.27,0.36,1.3,toonC(0x9FD3EA),g,0,1.15,0.2); [-1,1].forEach(a=>[-1,1].forEach(b=>{ const r=malha(new THREE.CylinderGeometry(0.3,0.3,0.2,16),toonC(0x22252A),g,a*0.68,0.3,b*1.0); r.rotation.z=Math.PI/2; }));
+    [-0.45,0.45].forEach(dx=>{ const f=malha(ESF,toonC(0xFFF6B0),g,dx,0.68,1.5,false); f.scale.set(0.14,0.09,0.04); }); len=3.0; }
+  ENT.obs.push({g,tipo,faixa,z,len});
 }
-const geoMoeda=new THREE.CylinderGeometry(0.4,0.4,0.08,24), matMoeda=toon(0xFFC93C,{emissive:0x3A2A00});
-function espalharMoedas(n){
-  for(let i=0;i<n;i++){ const k=Math.floor(Math.random()*(NQ+1)), p=rnd(2,MUNDO-2), lado=rnd(-1.8,1.8);
-    const m=new THREE.Mesh(geoMoeda,matMoeda); m.rotation.x=Math.PI/2; contorno(m,0.02);
-    if(Math.random()<0.5) m.position.set(p,0.8,centroRua(k)+lado); else m.position.set(centroRua(k)+lado,0.8,p);
-    cenaEnt.add(m); ENT.moedasObj.push(m); }
+const geoMoeda=new THREE.CylinderGeometry(0.28,0.28,0.06,24), matMoeda=toon(0xFFC93C,{emissive:0x3A2A00});
+function criarMoeda(faixa,z,y){ const m=new THREE.Mesh(geoMoeda,matMoeda); m.rotation.x=Math.PI/2; m.position.set(FAIXAS[faixa],y||0.75,z); m.castShadow=true; cenaEnt.add(m); contorno(m,0.015); ENT.moedasObj.push(m); }
+function gerarLinha(z){
+  const livres=[0,1,2]; const emb=a=>a.sort(()=>Math.random()-0.5);
+  const p=Math.random(), dif=Math.min(1,ENT.dist/ENT.alvo);
+  if(p<0.32){ emb(livres); criarObstaculo('carro',livres[0],z-1.5); if(Math.random()<0.4+dif*0.4) criarObstaculo(Math.random()<.5?'cone':'caixote',livres[1],z); }
+  else if(p<0.58){ emb(livres); const n=Math.random()<0.4+dif*0.3?2:1; for(let i=0;i<n;i++) criarObstaculo(['cone','caixote','buraco'][Math.floor(Math.random()*3)],livres[i],z); }
+  else if(p<0.8){ emb(livres); const n=Math.random()<0.5?2:1; for(let i=0;i<n;i++) criarObstaculo('barreira',livres[i],z); }
+  else { const t=Math.random()<0.5?'cone':'caixote'; [0,1,2].forEach(f=>criarObstaculo(t,f,z)); for(let k=-1;k<=1;k++) criarMoeda(1,z+k*1.2,1.9-Math.abs(k)*0.5); return; }
+  if(Math.random()<0.7){ const ocup=ENT.obs.filter(o=>Math.abs(o.z-z)<4).map(o=>o.faixa); const f=[0,1,2].find(x=>!ocup.includes(x)); if(f!==undefined) for(let k=0;k<6;k++) criarMoeda(f,z+6-k*1.4); }
 }
-function limparPista(){ ENT.carros.forEach(c=>cenaEnt.remove(c.g)); ENT.carros=[]; ENT.moedasObj.forEach(m=>cenaEnt.remove(m)); ENT.moedasObj=[]; pino.visible=false; }
+function criarChegada(z){
+  const g=new THREE.Group(); g.position.z=z; cenaEnt.add(g);
+  [-1,1].forEach(l=>malha(new THREE.CylinderGeometry(0.14,0.14,4.2,10),toon(0x1F4D3A),g,l*3.3,2.1,0));
+  const tx=texCanvas(512,96,(c)=>{ c.fillStyle='#FFC93C'; c.fillRect(0,0,512,96); c.fillStyle='#2A1A12'; c.font="bold 52px Nunito, sans-serif"; c.textAlign='center'; c.textBaseline='middle'; c.fillText('🏠 Casa do cliente',256,52); });
+  contorno(malha(new THREE.BoxGeometry(6.8,0.9,0.12),[toon(0xFFC93C),toon(0xFFC93C),toon(0xFFC93C),toon(0xFFC93C),new THREE.MeshBasicMaterial({map:tx}),new THREE.MeshBasicMaterial({map:tx})],g,0,4.0,0),0.03);
+  const casa=new THREE.Group(); casa.position.set(-7.5,0,-3); g.add(casa);
+  contorno(malha(new THREE.BoxGeometry(4.5,3,4),toon(0xFFF3D6),casa,0,1.5,0),0.04);
+  const tel=malha(new THREE.ConeGeometry(3.4,1.6,4),toon(0xC2362B),casa,0,3.8,0); tel.rotation.y=Math.PI/4; contorno(tel,0.04);
+  bloco(0.9,1.6,0.1,toon(0x8B5A34),casa,2.26,0.8,0); 
+  ENT.chegada=g;
+}
+function limparPista(){ ENT.obs.forEach(o=>cenaEnt.remove(o.g)); ENT.obs=[]; ENT.moedasObj.forEach(m=>cenaEnt.remove(m)); ENT.moedasObj=[]; if(ENT.chegada){ cenaEnt.remove(ENT.chegada); ENT.chegada=null; } }
 
 // ---------- Pedido ----------
 const NOMES_ITEM={refri:'Refrigerante',agua:'Água ou suco',salgadinho:'Salgadinho',gelo:'Saco de gelo',carvao:'Carvão',mercearia:'Mercearia'};
@@ -1911,133 +1913,112 @@ $('#btnEntregas').addEventListener('click',()=>{ if(!entregasLiberadas()) return
 $('#btnOutroPedido').addEventListener('click',()=>{ SOM.abrir(); mostrarPedido(); });
 $('#btnFecharPedido').addEventListener('click',()=>{ $('#telaPedido').hidden=true; });
 
-// ---------- Corrida pelo bairro ----------
-function escolherDestino(){
-  const xa=centroRua(ADEGA_Q[0]), za=centroRua(ADEGA_Q[1]+1);
-  for(let t=0;t<50;t++){
-    const i=Math.floor(Math.random()*NQ), j=Math.floor(Math.random()*NQ); if(i===ADEGA_Q[0]&&j===ADEGA_Q[1]) continue;
-    const x0=i*QCEL+RUA, z0=j*QCEL+RUA, lado=Math.floor(Math.random()*4);
-    const p=[[x0+BLOCO/2,z0-RUA/2],[x0+BLOCO/2,z0+BLOCO+RUA/2],[x0-RUA/2,z0+BLOCO/2],[x0+BLOCO+RUA/2,z0+BLOCO/2]][lado];
-    if(Math.hypot(p[0]-xa,p[1]-za)>32) return p;
-  }
-  return [centroRua(0)+0.1,centroRua(0)+0.1];
-}
+// ---------- Corrida ----------
 function iniciarEntrega(){
   const p=ENT.pedido; if(!p) return;
   for(const id in p.itens){ if(S.est[id].estoque<p.itens[id]){ mostrarPedido(); return; } }
   for(const id in p.itens){ S.est[id].estoque-=p.itens[id]; atualizarProdutos(id); }
   salvar();
   $('#telaPedido').hidden=true;
-  montarBairro(); limparPista(); montarMoto();
-  const xa=ADEGA_Q[0]*QCEL+RUA+BLOCO/2, za=centroRua(ADEGA_Q[1]+1);
-  const d=escolherDestino(); ENT.alvo={x:d[0],z:d[1]};
-  const percurso=Math.abs(d[0]-xa)+Math.abs(d[1]-za);
-  Object.assign(ENT,{ativo:true,estado:'contagem',t:3,x:xa,z:za,h:Math.PI/2,v:0,moedas:0,inv:0,joy:null,
-    tempoTotal:Math.round(percurso/8.5+9),valorMoeda:Math.max(1,Math.round(valorEst('refri')*0.25))});
-  ENT.tempo=ENT.tempoTotal;
-  pino.position.set(d[0],0,d[1]); pino.visible=true;
-  for(let i=0;i<12;i++) ENT.carros.push(criarCarro());
-  espalharMoedas(36);
+  limparPista(); posicionarSegmentos(); montarMoto();
+  Object.assign(ENT,{ativo:true,estado:'contagem',t:3,z:0,dist:0,vel:11,lane:1,x:0,y:0,vy:0,desl:0,moedas:0,prox:-26,
+    alvo:480+Math.floor(Math.random()*120),valorMoeda:Math.max(1,Math.round(valorEst('refri')*0.25))});
+  criarChegada(-ENT.alvo);
+  ['cone','caixote','buraco','barreira','carro'].forEach(t=>criarObstaculo(t,1,40)); criarMoeda(1,40);
   ENT.prPrev=renderer.getPixelRatio(); renderer.setPixelRatio(Math.min(ENT.prPrev,1.25));
-  posicionarCamera(); try{ renderer.compile(cenaEnt,camEnt); }catch(e){}
+  camEnt.position.set(0,4.1,6.8); camEnt.lookAt(0,0.7,-9);
+  try{ renderer.compile(cenaEnt,camEnt); }catch(e){}
+  ENT.obs.forEach(o=>cenaEnt.remove(o.g)); ENT.obs=[]; ENT.moedasObj.forEach(m=>cenaEnt.remove(m)); ENT.moedasObj=[]; ENT.bufPulo=0;
+  moto.position.set(0,0,0);
   document.body.classList.remove('jogando'); document.body.classList.add('entregando');
-  $('#dicaEnt').hidden=false; atualizarHudEnt();
+  $('#dicaEnt').hidden=false; $('#entMoedas').textContent='0'; atualizarHudEnt();
 }
 $('#btnSairEntregar').addEventListener('click',()=>{ SOM.marco(); iniciarEntrega(); });
-const tempoTxt=s=>{ s=Math.max(0,Math.ceil(s)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
 function atualizarHudEnt(){
-  $('#entTempo').textContent=tempoTxt(ENT.tempo); $('#entTempoBox').classList.toggle('urgente',ENT.tempo<=10&&ENT.estado==='correndo');
-  $('#entDist').textContent=Math.round(Math.hypot(ENT.alvo.x-ENT.x,ENT.alvo.z-ENT.z)*3)+' m';
+  const f=Math.min(1,ENT.dist/ENT.alvo); $('#entBarra').style.width=(f*100)+'%'; $('#entMoto').style.left=(f*100)+'%';
   $('#entMoedas').textContent=ENT.moedas;
   const c=$('#contagemEnt'); if(ENT.estado==='contagem'){ c.hidden=false; c.textContent=ENT.t>1?Math.ceil(ENT.t-1):'Vai!'; } else c.hidden=true;
 }
 function encerrarEntrega(sucesso){
-  ENT.estado='fim'; ENT.joy=null; mostrarJoy(false);
-  const gorjeta=sucesso?Math.round(ENT.pedido.valor*0.5*Math.max(0,ENT.tempo)/ENT.tempoTotal):0;
-  const ganhoMoedas=ENT.moedas*ENT.valorMoeda, ganho=(sucesso?ENT.pedido.valor:0)+gorjeta+ganhoMoedas;
+  ENT.estado='fim';
+  const ganhoMoedas=ENT.moedas*ENT.valorMoeda, ganho=(sucesso?ENT.pedido.valor:0)+ganhoMoedas;
   if(ganho>0){ S.din+=ganho; S.total+=ganho; registrarGanho(ganho); }
   S.entregas=S.entregas||{feitas:0,perdidas:0};
   if(sucesso) S.entregas.feitas++; else S.entregas.perdidas++;
   salvar();
-  $('#fimTitulo').textContent=sucesso?'Entrega feita!':'Tempo esgotado!';
-  $('#fimTexto').textContent=sucesso?'O cliente recebeu o pedido e deixou uma gorjeta pela rapidez.':'O cliente desistiu do pedido e os produtos se perderam. As moedas que você pegou ficam com você.';
+  $('#fimTitulo').textContent=sucesso?'Entrega feita!':'Pedido perdido!';
+  $('#fimTexto').textContent=sucesso?'O cliente recebeu o pedido e pagou com a taxa de entrega.':'A moto bateu e os produtos do pedido se perderam. As moedas que você pegou ficam com você.';
   $('#fimPedido').textContent=sucesso?fmt(ENT.pedido.valor):'0';
-  $('#fimGorjeta').textContent=fmt(gorjeta);
   $('#fimMoedas').textContent=ENT.moedas+' × '+fmt(ENT.valorMoeda)+' = '+fmt(ganhoMoedas);
   $('#fimTotal').textContent='+'+fmt(ganho);
   $('#fimFeitas').textContent=S.entregas.feitas;
   if(sucesso) SOM.marco(); else SOM.erro();
-  setTimeout(()=>{ $('#telaFimEntrega').hidden=false; },700);
+  setTimeout(()=>{ $('#telaFimEntrega').hidden=false; },sucesso?600:900);
 }
 function voltarParaAdega(){
-  ENT.ativo=false; ENT.estado=''; limparPista();
-  if(ENT.prPrev){ renderer.setPixelRatio(ENT.prPrev); ENT.prPrev=0; }
+  ENT.ativo=false; ENT.estado=''; limparPista(); if(ENT.prPrev){ renderer.setPixelRatio(ENT.prPrev); ENT.prPrev=0; }
   $('#telaFimEntrega').hidden=true; $('#dicaEnt').hidden=true;
   document.body.classList.remove('entregando'); document.body.classList.add('jogando'); atualizarHUD(true);
 }
 $('#btnVoltarAdega').addEventListener('click',voltarParaAdega);
 $('#btnNovaEntrega').addEventListener('click',()=>{ voltarParaAdega(); mostrarPedido(); });
-$('#btnAbandonar').addEventListener('click',()=>{ if(ENT.estado==='correndo'||ENT.estado==='contagem'){ ENT.tempo=0; encerrarEntrega(false); } });
+$('#btnAbandonar').addEventListener('click',()=>{ if(ENT.estado==='correndo'||ENT.estado==='contagem'){ ENT.estado='batida'; ENT.t=0.01; encerrarEntrega(false); } });
 
-function posicionarCamera(){
-  camEnt.position.set(ENT.x,38,ENT.z+12); camEnt.lookAt(ENT.x,0,ENT.z-0.5);
-  solEnt.position.set(ENT.x+8,26,ENT.z+10); solEnt.target.position.set(ENT.x,0,ENT.z);
-}
-function direcaoDesejada(){
-  if(ENT.joy&&ENT.joy.mag>0.12) return {x:ENT.joy.x,z:ENT.joy.z,mag:ENT.joy.mag};
-  const T=ENT.teclas; let x=(T.dir?1:0)-(T.esq?1:0), z=(T.baixo?1:0)-(T.cima?1:0);
-  if(x||z){ const l=Math.hypot(x,z); return {x:x/l,z:z/l,mag:1}; }
-  return null;
+function colide(o){
+  const dz=Math.abs(o.z-ENT.z); if(dz>o.len/2+0.55) return false;
+  if(Math.abs(FAIXAS[o.faixa]-ENT.x)>0.95) return false;
+  if(o.tipo==='carro') return true;
+  if(o.tipo==='barreira') return ENT.desl<=0;
+  return ENT.y<0.75;
 }
 function atualizarEntrega(dt){
   const E=ENT;
-  if(E.estado==='contagem'){ E.t-=dt; if(E.t<=0){ E.estado='correndo'; setTimeout(()=>{ $('#dicaEnt').hidden=true; },4000); } }
+  if(E.estado==='contagem'){ E.t-=dt; if(E.t<=0){ E.estado='correndo'; setTimeout(()=>{ $('#dicaEnt').hidden=true; },3500); } }
   if(E.estado==='correndo'){
-    E.tempo-=dt; if(E.inv>0) E.inv-=dt;
-    const d=direcaoDesejada();
-    if(d){ const alvoH=Math.atan2(-d.x,-d.z); let dif=alvoH-E.h; while(dif>Math.PI) dif-=Math.PI*2; while(dif<-Math.PI) dif+=Math.PI*2;
-      E.h+=Math.max(-dt*7,Math.min(dt*7,dif)); const vAlvo=VMAX*d.mag*(Math.abs(dif)>1.6?0.4:1); E.v+=(vAlvo-E.v)*Math.min(1,dt*2.6); }
-    else E.v*=Math.max(0,1-dt*2.2);
-    const nx=E.x-Math.sin(E.h)*E.v*dt, nz=E.z-Math.cos(E.h)*E.v*dt;
-    // prédios: a moto só anda pelas ruas
-    if(!dentroQuarteirao(nx,nz,0.7)){ E.x=nx; E.z=nz; }
-    else if(!dentroQuarteirao(nx,E.z,0.7)){ E.x=nx; E.v*=0.85; }
-    else if(!dentroQuarteirao(E.x,nz,0.7)){ E.z=nz; E.v*=0.85; }
-    else E.v*=0.3;
-    E.x=Math.max(1,Math.min(MUNDO-1,E.x)); E.z=Math.max(1,Math.min(MUNDO-1,E.z));
-    // trânsito
-    for(const c of E.carros){ c.pos+=c.dir*c.vel*dt; if(c.pos>MUNDO+6) c.pos=-6; if(c.pos<-6) c.pos=MUNDO+6;
-      if(c.eixo==='x') c.g.position.set(c.pos,0,c.fixo); else c.g.position.set(c.fixo,0,c.pos);
-      if(E.inv<=0&&Math.hypot(c.g.position.x-E.x,c.g.position.z-E.z)<1.9){ E.inv=1.4; E.tempo-=3; E.v=-4; SOM.erro(); $('#entBatida').hidden=false; setTimeout(()=>{$('#entBatida').hidden=true;},900); } }
-    // moedas
+    E.vel=Math.min(24,11+E.dist*0.022); const avanco=E.vel*dt; E.z-=avanco; E.dist+=avanco;
+    while(E.prox>E.z-62&&E.prox>-E.alvo+28){ gerarLinha(E.prox); E.prox-=rnd(10.5,15)-Math.min(3,E.dist*0.004); }
+    E.x+=(FAIXAS[E.lane]-E.x)*Math.min(1,dt*18);
+    if(E.bufPulo>0){ E.bufPulo-=dt; if(E.y===0&&E.vy===0){ E.vy=8.2; E.desl=0; E.bufPulo=0; } }
+    if(E.y>0||E.vy>0){ E.vy-=24*dt; E.y=Math.max(0,E.y+E.vy*dt); if(E.y===0) E.vy=0; }
+    if(E.desl>0) E.desl-=dt;
+    for(const o of E.obs){ if(colide(o)){ E.estado='batida'; E.t=0.9; SOM.erro&&0; break; } }
     for(let i=E.moedasObj.length-1;i>=0;i--){ const m=E.moedasObj[i]; m.rotation.z+=dt*4;
-      if(Math.hypot(m.position.x-E.x,m.position.z-E.z)<1.4){ cenaEnt.remove(m); E.moedasObj.splice(i,1); E.moedas++; SOM.venda&&SOM.venda(); } }
-    rodasMoto.forEach(r=>r.rotation.x-=E.v*dt/0.32);
-    if(Math.hypot(E.alvo.x-E.x,E.alvo.z-E.z)<2.6){ E.estado='chegou'; encerrarEntrega(true); }
-    else if(E.tempo<=0){ E.tempo=0; encerrarEntrega(false); }
+      if(Math.abs(m.position.z-E.z)<0.8&&Math.abs(m.position.x-E.x)<0.8&&Math.abs(m.position.y-(E.y+0.75))<1.0){ cenaEnt.remove(m); E.moedasObj.splice(i,1); E.moedas++; SOM.venda&&SOM.venda(); } }
+    for(let i=E.obs.length-1;i>=0;i--){ if(E.obs[i].z>E.z+12){ cenaEnt.remove(E.obs[i].g); E.obs.splice(i,1); } }
+    for(let i=E.moedasObj.length-1;i>=0;i--){ if(E.moedasObj[i].position.z>E.z+12){ cenaEnt.remove(E.moedasObj[i]); E.moedasObj.splice(i,1); } }
+    segmentos.forEach(s=>{ if(s.g.position.z-SEG/2>E.z+10){ s.g.position.z-=NSEG*SEG; } });
+    rodasMoto.forEach(r=>r.rotation.x-=avanco/0.32);
+    if(E.dist>=E.alvo){ E.estado='chegou'; E.t=1.2; encerrarEntrega(true); }
   }
-  moto.position.set(E.x,0,E.z); moto.rotation.y=E.h;
-  if(motoCorpo) motoCorpo.visible=!(E.inv>0&&Math.floor(E.inv*10)%2===0);
-  const ang=Math.atan2(-(E.alvo.x-E.x),-(E.alvo.z-E.z)); seta.rotation.y=ang; seta.position.set(E.x-Math.sin(ang)*3.4,0.8,E.z-Math.cos(ang)*3.4);
-  seta.visible=E.estado!=='fim'&&Math.hypot(E.alvo.x-E.x,E.alvo.z-E.z)>4;
-  pino.position.y=Math.sin(performance.now()/300)*0.25; pino.rotation.y+=dt;
-  posicionarCamera();
+  if(E.estado==='batida'){ E.t-=dt; motoCorpo.rotation.z=Math.min(1.2,(motoCorpo.rotation.z||0)+dt*3); if(E.t<=0&&E.estado==='batida'){ encerrarEntrega(false); } }
+  if(E.estado==='chegou'){ E.vel=Math.max(0,E.vel-dt*18); E.z-=E.vel*dt; }
+  moto.position.set(E.x,E.y,E.z);
+  if(motoCorpo){ if(E.estado!=='batida') motoCorpo.rotation.z=(FAIXAS[E.lane]-E.x)*-0.18; motoCorpo.rotation.x=E.y>0?-0.15:0; piloto.userData.corpo.scale.y=E.desl>0?0.72:1; }
+  camEnt.position.set(E.x*0.55,4.1,E.z+6.8); camEnt.lookAt(E.x*0.35,0.7,E.z-9);
+  solEnt.position.set(E.x+4,10,E.z+4); solEnt.target.position.set(E.x,0,E.z-4);
   atualizarHudEnt();
 }
-
-// ---------- Controles: arrastar o dedo na direção desejada ----------
-function mostrarJoy(v,x,y){ const j=$('#joyEnt'); if(!v){ j.hidden=true; return; } j.hidden=false; j.style.left=x+'px'; j.style.top=y+'px'; $('#joyBola').style.transform='translate(-50%,-50%)'; }
-addEventListener('pointerdown',e=>{ if(!ENT.ativo||ENT.estado==='fim') return; if(e.target.closest&&e.target.closest('button,.tela')) return;
-  ENT.joy={ox:e.clientX,oy:e.clientY,x:0,z:0,mag:0}; mostrarJoy(true,e.clientX,e.clientY); },{passive:true});
-addEventListener('pointermove',e=>{ if(!ENT.ativo||!ENT.joy) return;
-  const dx=e.clientX-ENT.joy.ox, dy=e.clientY-ENT.joy.oy, l=Math.hypot(dx,dy), raio=60;
-  ENT.joy.mag=Math.min(1,l/raio); if(l>0){ ENT.joy.x=dx/l; ENT.joy.z=dy/l; }
-  const k=Math.min(l,raio)/(l||1); $('#joyBola').style.transform='translate(calc(-50% + '+(dx*k)+'px),calc(-50% + '+(dy*k)+'px))'; },{passive:true});
-const soltarJoy=()=>{ if(ENT.joy){ ENT.joy=null; mostrarJoy(false); } };
-addEventListener('pointerup',soltarJoy,{passive:true}); addEventListener('pointercancel',soltarJoy,{passive:true});
-const MAPA_TECLA={ArrowLeft:'esq',a:'esq',ArrowRight:'dir',d:'dir',ArrowUp:'cima',w:'cima',ArrowDown:'baixo',s:'baixo'};
-addEventListener('keydown',e=>{ if(!ENT.ativo) return; const k=MAPA_TECLA[e.key]; if(k){ ENT.teclas[k]=true; e.preventDefault(); } });
-addEventListener('keyup',e=>{ const k=MAPA_TECLA[e.key]; if(k) ENT.teclas[k]=false; });
+function comandoEnt(c){
+  if(!ENT.ativo||ENT.estado!=='correndo') return;
+  if(c==='esq'&&ENT.lane>0) ENT.lane--;
+  if(c==='dir'&&ENT.lane<2) ENT.lane++;
+  if(c==='pula'){ if(ENT.y===0&&ENT.vy===0){ ENT.vy=8.2; ENT.desl=0; } else ENT.bufPulo=0.2; }
+  if(c==='abaixa'){ if(ENT.y>0) ENT.vy=-14; ENT.desl=0.75; }
+}
+let toqueEnt=null;
+addEventListener('pointerdown',e=>{ if(ENT.ativo) toqueEnt={x:e.clientX,y:e.clientY,usado:false}; },{passive:true});
+addEventListener('pointermove',e=>{
+  if(!ENT.ativo||!toqueEnt||toqueEnt.usado) return;
+  const dx=e.clientX-toqueEnt.x, dy=e.clientY-toqueEnt.y;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<24) return;
+  toqueEnt.usado=true;
+  if(Math.abs(dx)>Math.abs(dy)) comandoEnt(dx<0?'esq':'dir'); else comandoEnt(dy<0?'pula':'abaixa');
+},{passive:true});
+addEventListener('pointerup',()=>{ toqueEnt=null; },{passive:true});
+addEventListener('pointercancel',()=>{ toqueEnt=null; },{passive:true});
+addEventListener('keydown',e=>{ if(!ENT.ativo) return; const k=e.key;
+  if(k==='ArrowLeft'||k==='a') comandoEnt('esq'); else if(k==='ArrowRight'||k==='d') comandoEnt('dir');
+  else if(k==='ArrowUp'||k==='w'||k===' ') comandoEnt('pula'); else if(k==='ArrowDown'||k==='s') comandoEnt('abaixa'); });
 
 // ================= Sair do jogo =================
 function mostrarSaiu(){
