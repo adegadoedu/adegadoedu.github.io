@@ -1007,7 +1007,7 @@ const atendentes=[-0.7,0.7].map(x=>{const p=pessoa({preset:'caixa'});p.position.
 let edus=[-0.7,0.7].map(x=>{const p=pessoaV(VISUAL_PADRAO);p.position.set(CX.x+x,0,CX.z-1.35);scene.add(p);p.visible=false;return p;});
 const garcom=pessoa({preset:'garcom'}); garcom.position.set(-1.6,0,Z_CORREDOR); garcom.rotation.y=-Math.PI/2; scene.add(garcom); garcom.visible=false;
 const gerente=pessoa({preset:'gerente'}); gerente.position.set(pilhaG.position.x,0,pilhaG.position.z-1.45); scene.add(gerente); gerente.visible=false;
-const eduDono=pessoa({preset:'edu'}); eduDono.position.set(-2.35,0,7.2); eduDono.rotation.y=0.8; scene.add(eduDono);
+const eduDono=pessoa({preset:'edu'}); eduDono.position.set(-1.1,0,3.6); scene.add(eduDono); eduDono.userData.bE.rotation.z=-0.14;
 
 // ================= Navegação: clientes contornam os móveis =================
 const CEL=0.25, G0=-5, NG=40, RAIO=0.32;
@@ -1311,12 +1311,13 @@ function receberSemGerente(){
   pop(G.g.position.clone().setY(2.1),'Fui buscar a mercadoria!','');
 }
 function posicionarReceber(){
-  if(FORN.estado==='parado'&&!S.gerente&&G.estado==='livre'&&document.body.classList.contains('jogando')){
+  if(false){
     const t=naTela(caminhao.position.clone().setY(2.6)); btnReceber.style.display='flex'; btnReceber.style.left=t.x+'px'; btnReceber.style.top=t.y+'px';
   } else btnReceber.style.display='none';
 }
 function proximoSetorGerente(){
   if(G.lista.length){ G.estado='indoSetor'; G.caminho=rota(G.g.position,pontoEst(G.lista[0],1)); }
+  else if(G.quem==='edu'){ caixaGer.visible=false; G.estado='livre'; }
   else { caixaGer.visible=false; G.estado='voltandoPosto'; G.caminho=rota(G.g.position,G.posto).concat([G.posto.clone()]); }
 }
 function atualizarGerente(dt){
@@ -1343,7 +1344,11 @@ function atualizarFornecedor(dt){
   }
   else if(F.estado==='parado'){
     if(!F.fila.length&&G.estado==='livre'){ F.estado='saindo'; }
-    else if(S.gerente&&G.estado==='livre'){ iniciarRecebimento(gerente,'gerente'); }
+    else if(G.estado==='livre'){
+      const cand=[eduDono]; if(S.gerente) cand.push(gerente);
+      cand.sort((a,b)=>a.position.distanceTo(DESCARGA)-b.position.distanceTo(DESCARGA));
+      iniciarRecebimento(cand[0],cand[0]===gerente?'gerente':'edu');
+    }
   }
   atualizarGerente(dt);
 }
@@ -2138,7 +2143,7 @@ function renderSelos(){
 function posicionarSelos(){
   Object.keys(POS_SELO).forEach(k=>{const t=naTela(POS_SELO[k]());selos[k].style.left=t.x+'px'; selos[k].style.top=t.y+'px';});
   const ph=$('#pilha');
-  if(pilhaValor>=1&&(!S.gerente||G.estado!=='livre')){ const t=naTela(pilhaG.position.clone().setY(1.7)); ph.style.display='block'; ph.innerHTML=`${fmt(pilhaValor)}<small>toque para recolher</small>`; ph.style.transform=`translate(${t.x}px,${t.y}px) translate(-50%,-100%)`; }
+  if(pilhaValor>=1&&(!S.gerente||(G.estado!=='livre'&&G.g===gerente))){ const t=naTela(pilhaG.position.clone().setY(1.7)); ph.style.display='block'; ph.innerHTML=`${fmt(pilhaValor)}<small>toque para recolher</small>`; ph.style.transform=`translate(${t.x}px,${t.y}px) translate(-50%,-100%)`; }
   else ph.style.display='none';
 }
 
@@ -2312,6 +2317,32 @@ setInterval(salvar,5000);
 // ================= Laço =================
 const relogio=new THREE.Clock();
 let proxCliente=1.0, tGerente=0, tSelos=0;
+// ---------- Edu, o Dono, passeando pela loja ----------
+const EDU={g:eduDono,caminho:[],vel:1.2,passo:0,estado:'parado',t:2,aceno:0};
+function pontoPasseio(){
+  const op=[];
+  IDS.forEach(id=>{ if(S.est[id].aberta){ const p=pontoEst(id,Math.floor(Math.random()*3)).clone(); p.x+=EST[id].face[0]*0.8; p.z+=EST[id].face[2]*0.8; op.push(p); } });
+  op.push(new THREE.Vector3(-0.6,0,2.6),new THREE.Vector3(0.6,0,-1.6),new THREE.Vector3(-2.2,0,0.3),new THREE.Vector3(1.4,0,2.6));
+  if(S.mesas.n>0) op.push(new THREE.Vector3(-1.2,0,2.2));
+  return op[Math.floor(Math.random()*op.length)];
+}
+function atualizarEdu(dt){
+  const E=EDU, u=E.g.userData;
+  if(G.estado!=='livre'&&G.g===E.g){ E.retomar=true; E.aceno=0; u.bE.rotation.z=-0.14; u.bE.rotation.x=0; return; }
+  if(E.retomar){ E.retomar=false; E.estado='parado'; E.t=1.2; E.caminho=[]; u.pE.rotation.x=u.pD.rotation.x=0; u.corpo.position.y=0; }
+  if(document.body.classList.contains('jogando')){
+    if(E.estado==='andando'){ if(mover(E,dt)){ E.estado='parado'; E.t=rnd(2.5,5.5); E.aceno=Math.random()<0.6?1.8:0; u.pE.rotation.x=u.pD.rotation.x=0; u.corpo.position.y=0; } }
+    else {
+      E.t-=dt;
+      let perto=null, dm=3.5;
+      clientes.forEach(c=>{ const d=c.g.position.distanceTo(E.g.position); if(d<dm){ dm=d; perto=c; } });
+      if(perto||E.aceno>0){ const ang=E.aceno>0?Math.PI/4:Math.atan2(perto.g.position.x-E.g.position.x,perto.g.position.z-E.g.position.z); let dif=ang-E.g.rotation.y; while(dif>Math.PI) dif-=Math.PI*2; while(dif<-Math.PI) dif+=Math.PI*2; E.g.rotation.y+=dif*Math.min(1,dt*5); }
+      if(E.t<=0){ E.estado='andando'; E.aceno=0; E.caminho=rota(E.g.position,pontoPasseio()); }
+    }
+  }
+  if(E.aceno>0){ E.aceno-=dt; u.bE.rotation.z=-2.15+Math.sin(performance.now()/150)*0.35; u.bE.rotation.x=-0.25; }
+  else { u.bE.rotation.z+=(-0.14-u.bE.rotation.z)*Math.min(1,dt*8); u.bE.rotation.x*=Math.max(0,1-dt*8); }
+}
 function laco(){
   requestAnimationFrame(laco);
   const dt=Math.min(relogio.getDelta(),0.05);
@@ -2322,7 +2353,7 @@ function laco(){
     if(proxCliente<=0){ if(clientes.length<18) novoCliente(); proxCliente=intervalo()*rnd(0.75,1.25); }
     atualizarClientes(dt);
     atualizarFornecedor(dt);
-    if(S.gerente&&G.estado==='livre'){ tGerente+=dt; if(tGerente>2.5){ tGerente=0; if(pilhaValor>=1) coletar('gerente'); } gerente.rotation.y=Math.sin(performance.now()/900)*0.4; }
+    if(S.gerente&&!(G.estado!=='livre'&&G.g===gerente)){ tGerente+=dt; if(tGerente>2.5){ tGerente=0; if(pilhaValor>=1) coletar('gerente'); } gerente.rotation.y=Math.sin(performance.now()/900)*0.4; }
     if(S.mesas.garcom){ assentos.forEach(a=>{ if(a.estado==='sujo'){ a.t+=dt; if(a.t>2.5) recolherMesa(a.mesa,true); } }); }
     assentos.forEach(a=>{ if(a.estado==='sujo') a.nota.position.y=0.03+Math.abs(Math.sin(performance.now()/250))*0.04; });
     checarFalencia(dt);
@@ -2332,7 +2363,7 @@ function laco(){
   const n=pilhaValor<1?0:Math.min(16,1+Math.floor(Math.log2(pilhaValor+1)*1.6));
   notas.forEach((m,i)=>m.visible=i<n);
   // atendentes balançando
-  eduDono.userData.bE.rotation.z=-2.55+Math.sin(performance.now()/170)*0.28;
+  atualizarEdu(dt);
   atendentes.concat(edus).forEach((a,i)=>{ if(a.visible&&!(G.estado!=='livre'&&G.g===a)) a.userData.corpo.position.y=Math.abs(Math.sin(performance.now()/300+i))*0.03; });
   for(let i=confetes.length-1;i>=0;i--){const c=confetes[i];c.t+=dt;c.v.y-=6*dt;c.m.position.addScaledVector(c.v,dt);c.m.rotation.x+=c.r.x*dt;c.m.rotation.y+=c.r.y*dt;if(c.t>1.4||c.m.position.y<0.05){scene.remove(c.m);c.m.geometry.dispose();c.m.material.dispose();confetes.splice(i,1);}}
   posicionarSelos(); posicionarCobrancas(); posicionarMesas(); posicionarReceber();
