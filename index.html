@@ -171,6 +171,7 @@ body.entregando .hud,body.entregando #selos,body.entregando #cobrancas,body.entr
 .ent-moedas{display:flex;gap:6px;align-items:center;font-weight:900}
 .ent-contagem{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:'Lilita One',sans-serif;font-size:6rem;color:#FFC93C;-webkit-text-stroke:10px #2A1A12;paint-order:stroke fill;text-shadow:0 7px 0 #2A1A12;z-index:6}
 .ent-dica{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);width:min(92vw,520px);text-align:center;background:rgba(255,255,255,.94);color:#2A1A12;border:3px solid var(--contorno);border-radius:16px;padding:10px 12px;font-weight:900;font-size:.95rem;z-index:6}
+.ent-stats{background:var(--painel2);border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:800;font-size:.95rem;text-align:center;margin:6px 0 4px}
 .ped-itens{list-style:none;padding:0;margin:8px 0 10px;display:grid;gap:6px}
 .ped-itens li{background:var(--painel2);border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:900}
 #btnRanking,#btnPersonagem,#btnSair{font-size:1.15rem;padding:4px 10px;cursor:pointer}
@@ -286,6 +287,7 @@ body:not(.jogando) .alerta{display:none}
 <section class="tela" id="telaPedido" hidden>
   <div class="caixa">
     <h2 class="titulo" style="font-size:1.9rem">🛵 Pedido de entrega</h2>
+    <div class="ent-stats" id="pedStats"></div>
     <p class="txt">Um cliente pediu pelo WhatsApp da adega:</p>
     <ul class="ped-itens" id="pedItens"></ul>
     <div class="stat"><span>Pagamento (com taxa de entrega)</span><b id="pedValor">0</b></div>
@@ -303,7 +305,7 @@ body:not(.jogando) .alerta{display:none}
     <div class="stat"><span>Pedido</span><b id="fimPedido">0</b></div>
     <div class="stat"><span>Moedas</span><b id="fimMoedas">0</b></div>
     <div class="stat destaque"><span>Total</span><b id="fimTotal">0</b></div>
-    <p class="txt centro" style="font-size:.85rem;color:var(--sub)">Entregas feitas: <b id="fimFeitas">0</b></p>
+    <div class="ent-stats" id="fimStats"></div>
     <button class="btn" id="btnNovaEntrega" type="button">Nova entrega</button>
     <button type="button" class="link-btn" id="btnVoltarAdega">Voltar para a adega</button>
   </div>
@@ -1911,7 +1913,13 @@ function novoPedido(){
   let valor=0; Object.keys(itens).forEach(id=>valor+=valorEst(id)*itens[id]*(id==='carvao'&&Math.random()<0.45?FATOR_4KG:1));
   return {itens,valor:Math.round(valor*FATOR_ENTREGA)};
 }
+function textoStatsEntregas(){
+  const e=S.entregas||{feitas:0,perdidas:0}, f=e.feitas||0, p=e.perdidas||0;
+  return '🛵 Suas entregas: <b>'+f+'</b> '+(f===1?'feita':'feitas')+' · <b>'+p+'</b> '+(p===1?'perdida':'perdidas');
+}
+function mostrarStatsEntregas(){ const t=textoStatsEntregas(); ['#pedStats','#fimStats'].forEach(id=>{ const el=$(id); if(el) el.innerHTML=t; }); }
 function mostrarPedido(){
+  mostrarStatsEntregas();
   const p=novoPedido(), lista=$('#pedItens'); lista.innerHTML='';
   if(!p){ ENT.pedido=null; $('#pedValor').textContent='—'; const li=document.createElement('li'); li.textContent='Não há produtos suficientes no estoque. Peça reposição ao fornecedor antes de sair para entregar.'; lista.appendChild(li); $('#btnSairEntregar').disabled=true; }
   else { ENT.pedido=p; Object.keys(p.itens).forEach(id=>{ const li=document.createElement('li'); li.textContent=EST[id].ic+' '+p.itens[id]+'× '+NOMES_ITEM[id]; lista.appendChild(li); }); $('#pedValor').textContent=fmt(p.valor); $('#btnSairEntregar').disabled=false; }
@@ -1959,7 +1967,7 @@ function encerrarEntrega(sucesso){
   $('#fimPedido').textContent=sucesso?fmt(ENT.pedido.valor):'0';
   $('#fimMoedas').textContent=ENT.moedas+' × '+fmt(ENT.valorMoeda)+' = '+fmt(ganhoMoedas);
   $('#fimTotal').textContent='+'+fmt(ganho);
-  $('#fimFeitas').textContent=S.entregas.feitas;
+  mostrarStatsEntregas();
   if(sucesso) SOM.marco(); else SOM.erro();
   setTimeout(()=>{ $('#telaFimEntrega').hidden=false; },sucesso?600:900);
 }
