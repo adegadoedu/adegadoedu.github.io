@@ -162,6 +162,17 @@ async function carregarResumo(){
     box.appendChild(el('div','sub-tit','Últimos cupons usados no balcão'));
     if(r.ultimos_usados.length) box.appendChild(tabela([['Quando'],['Jogador'],['Código'],['Valor',1]],r.ultimos_usados.map(x=>[dataHora(x.usado_em),x.apelido,x.codigo,reais(x.valor)])));
     else box.appendChild(el('p','vazio','Nenhum cupom usado ainda.'));
+    box.appendChild(el('div','sub-tit','🛵 Entregas por jogador'));
+    try{
+      const en=await rpc('resumo_entregas',{p_senha:senha});
+      const g3=el('div','grade');
+      g3.append(cartaoNum('entregas feitas',String(en.total_feitas),true),cartaoNum('pedidos perdidos',String(en.total_perdidas)));
+      box.appendChild(g3);
+      if(en.jogadores.length) box.appendChild(tabela([['Jogador'],['Feitas',1],['Perdidas',1],['Atualizado',1]],en.jogadores.map(x=>[x.apelido,String(x.feitas),String(x.perdidas),dataHora(x.atualizado_em)])));
+      else box.appendChild(el('p','vazio','Ninguém fez entregas ainda. Elas são liberadas depois de completar todas as tarefas.'));
+    }catch(e){
+      box.appendChild(el('p','vazio',/resumo_entregas/.test(e.message)?'O resumo de entregas ainda não foi instalado no banco. Rode o supabase-resumo-entregas.sql no Supabase.':'Não foi possível carregar as entregas agora.'));
+    }
     try{ sessionStorage.setItem('senhaBalcao',senha); }catch(e){}
   }catch(e){
     box.innerHTML=''; const k=Object.keys(MSG).find(x=>e.message.indexOf(x)>=0);
