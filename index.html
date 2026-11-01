@@ -392,7 +392,7 @@ body:not(.jogando) .alerta{display:none}
     <h2 class="titulo" style="font-size:2rem">Adega completa!</h2>
     <p class="txt"><b>🛵 Novidade: as entregas de moto foram liberadas!</b> Use o botão “Entregas” para levar pedidos aos clientes e faturar ainda mais.</p>
     <p class="txt">Você cumpriu todas as tarefas da Adega do Edu. A loja continua funcionando: siga melhorando os setores, mantendo o estoque cheio e batendo recordes de faturamento.</p>
-    <div class="cupom"><b>🎁 Cupom de conclusão:</b> por ter completado todas as tarefas, você pode pegar um cupom de até R$ 5,00 por mês, em produtos não alcoólicos da Adega do Edu. Ele conta dentro do limite de R$ 10,00 por mês.</div>
+    <div class="cupom"><b>🎁 Cupom de conclusão:</b> por ter completado todas as tarefas, você ganha um cupom único de até R$ 5,00, em produtos não alcoólicos da Adega do Edu. Ele conta dentro do limite de R$ 10,00 por mês.</div>
     <button class="btn amarelo" id="btnConclusao">Pegar meu cupom de conclusão</button>
     <p class="erro" id="conclErro" role="alert"></p>
     <div id="conclNovo"></div>
@@ -1656,7 +1656,7 @@ $('#cpGerar').addEventListener('click',async()=>{
 });
 
 // ---------- Cupom de conclusão (todas as tarefas) ----------
-const msgConclusao={conclusao_incompleta:'O seu faturamento registrado ainda não chegou a 150 mil. Jogue mais um pouco e tente de novo.',conclusao_ja_pega:'Você já pegou o cupom de conclusão deste mês. Volte no mês que vem!',limite_mensal:'Você já usou o limite de R$ 10,00 em cupons este mês. Volte no mês que vem!',jogador_falido:'Essa adega faliu e não pode gerar cupons.'};
+const msgConclusao={conclusao_incompleta:'O seu faturamento registrado ainda não chegou a 150 mil. Jogue mais um pouco e tente de novo.',conclusao_ja_pega:'Você já pegou o seu cupom de conclusão. Ele é único, um por jogador.',limite_mensal:'Você já usou o limite de R$ 10,00 em cupons este mês. Volte no mês que vem!',jogador_falido:'Essa adega faliu e não pode gerar cupons.'};
 $('#btnConclusao').addEventListener('click',async()=>{
   const btn=$('#btnConclusao'), err=$('#conclErro'); if(btn.disabled) return;
   if(!rankingAtivo()||!S.perfil||!S.perfil.id){ err.textContent='Para pegar o cupom, o jogo precisa estar conectado à internet com o seu cadastro.'; return; }
@@ -1669,7 +1669,7 @@ $('#btnConclusao').addEventListener('click',async()=>{
     const cod=document.createElement('div'); cod.className='cod'; cod.textContent=l.cupom_codigo;
     const t2=document.createElement('div'); t2.textContent='Mostre este código no balcão da Adega do Edu. Válido até '+dataBR(l.cupom_expira)+'. Ele também fica na lista de cupons do 🎟️.';
     box.append(t1,cod,t2); $('#conclNovo').innerHTML=''; $('#conclNovo').appendChild(box);
-    btn.textContent='Cupom deste mês já pego'; SOM.marco();
+    btn.textContent='Cupom de conclusão já pego'; SOM.marco();
     S.conclusaoMes=mesAtualConclusao(); salvar(); renderTarefa();
   }catch(e){
     const k=Object.keys(msgConclusao).find(c=>e.message.indexOf(c)>=0);
@@ -2102,9 +2102,9 @@ let cacheTarefa='';
 const mesAtualConclusao=()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
 function renderTarefa(){
   const el=$('#tarefa');
-  if(S.tarefa>=TAREFAS.length&&S.conclusaoMes&&S.conclusaoMes===mesAtualConclusao()){ el.hidden=true; cacheTarefa='oculto'; return; }
+  if(S.tarefa>=TAREFAS.length&&S.conclusaoMes){ el.hidden=true; cacheTarefa='oculto'; return; }
   el.hidden=false;
-  if(S.tarefa>=TAREFAS.length){ if(cacheTarefa==='fim') return; cacheTarefa='fim'; el.innerHTML=`<span class="ic">🏆</span><div class="txt">Todas as tarefas concluídas! 🎁 Pegue o seu cupom de conclusão do mês.</div><button id="btnTarefa">Ver</button>`; $('#btnTarefa').onclick=()=>{SOM.abrir();$('#telaPrestigio').hidden=false;}; return; }
+  if(S.tarefa>=TAREFAS.length){ if(cacheTarefa==='fim') return; cacheTarefa='fim'; el.innerHTML=`<span class="ic">🏆</span><div class="txt">Todas as tarefas concluídas! 🎁 Pegue o seu cupom de conclusão.</div><button id="btnTarefa">Ver</button>`; $('#btnTarefa').onclick=()=>{SOM.abrir();$('#telaPrestigio').hidden=false;}; return; }
   const t=TAREFAS[S.tarefa], [a,b]=t.meta(), feito=a>=b;
   const html=`<span class="ic">${t.ic}</span><div class="txt">${t.txt}<div class="barra"><i style="width:${Math.min(100,100*a/b)}%"></i></div></div>`+
     (feito?`<button id="btnTarefa">Pegar</button>`:`<span class="rec"><small>🎁 Prêmio</small><b>+${fmt(t.premio*multPrest())}</b></span>`);
