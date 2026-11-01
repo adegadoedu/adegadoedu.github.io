@@ -40,6 +40,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 #taxa{font-size:.85rem}
 #prest{font-size:.85rem}
 .tarefa{display:flex;align-items:center;gap:10px;width:100%;max-width:30rem;background:var(--painel);color:var(--texto);border:3px solid var(--contorno);border-radius:16px;box-shadow:0 4px 0 var(--contorno);padding:7px 8px 7px 10px}
+.tarefa[hidden]{display:none}
 .tarefa .ic{font-size:1.3rem}
 .tarefa .txt{flex:1;min-width:0;font-size:.88rem;line-height:1.25}
 .tarefa .barra{height:7px;background:var(--trilho);border-radius:4px;margin-top:4px;overflow:hidden;border:1.5px solid var(--contorno)}
@@ -1669,8 +1670,10 @@ $('#btnConclusao').addEventListener('click',async()=>{
     const t2=document.createElement('div'); t2.textContent='Mostre este código no balcão da Adega do Edu. Válido até '+dataBR(l.cupom_expira)+'. Ele também fica na lista de cupons do 🎟️.';
     box.append(t1,cod,t2); $('#conclNovo').innerHTML=''; $('#conclNovo').appendChild(box);
     btn.textContent='Cupom deste mês já pego'; SOM.marco();
+    S.conclusaoMes=mesAtualConclusao(); salvar(); renderTarefa();
   }catch(e){
     const k=Object.keys(msgConclusao).find(c=>e.message.indexOf(c)>=0);
+    if(k==='conclusao_ja_pega'){ S.conclusaoMes=mesAtualConclusao(); salvar(); renderTarefa(); }
     err.textContent=k?msgConclusao[k]:'Não foi possível gerar o cupom agora. Confira a internet e tente de novo.';
     btn.disabled=false; btn.textContent=txt;
   }
@@ -2096,8 +2099,11 @@ function atualizarHUD(pulo){
 setInterval(()=>{$('#taxa').textContent=fmt(Math.max(taxaPorMin(),0))+'/min';},1000);
 
 let cacheTarefa='';
+const mesAtualConclusao=()=>{ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); };
 function renderTarefa(){
   const el=$('#tarefa');
+  if(S.tarefa>=TAREFAS.length&&S.conclusaoMes&&S.conclusaoMes===mesAtualConclusao()){ el.hidden=true; cacheTarefa='oculto'; return; }
+  el.hidden=false;
   if(S.tarefa>=TAREFAS.length){ if(cacheTarefa==='fim') return; cacheTarefa='fim'; el.innerHTML=`<span class="ic">🏆</span><div class="txt">Todas as tarefas concluídas! 🎁 Pegue o seu cupom de conclusão do mês.</div><button id="btnTarefa">Ver</button>`; $('#btnTarefa').onclick=()=>{SOM.abrir();$('#telaPrestigio').hidden=false;}; return; }
   const t=TAREFAS[S.tarefa], [a,b]=t.meta(), feito=a>=b;
   const html=`<span class="ic">${t.ic}</span><div class="txt">${t.txt}<div class="barra"><i style="width:${Math.min(100,100*a/b)}%"></i></div></div>`+
