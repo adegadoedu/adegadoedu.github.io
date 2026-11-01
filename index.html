@@ -172,6 +172,7 @@ body.entregando .hud,body.entregando #selos,body.entregando #cobrancas,body.entr
 .ent-contagem{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:'Lilita One',sans-serif;font-size:6rem;color:#FFC93C;-webkit-text-stroke:10px #2A1A12;paint-order:stroke fill;text-shadow:0 7px 0 #2A1A12;z-index:6}
 .ent-dica{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);width:min(92vw,520px);text-align:center;background:rgba(255,255,255,.94);color:#2A1A12;border:3px solid var(--contorno);border-radius:16px;padding:10px 12px;font-weight:900;font-size:.95rem;z-index:6}
 .ent-stats{background:var(--painel2);border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:800;font-size:.95rem;text-align:center;margin:6px 0 4px}
+.ent-aviso{position:fixed;left:50%;top:22%;transform:translateX(-50%);width:min(90vw,440px);text-align:center;background:#E8433A;color:#fff;border:4px solid #2A1A12;border-radius:16px;box-shadow:0 5px 0 #2A1A12;padding:10px 14px;font-weight:900;font-size:1rem;z-index:7}
 .ped-itens{list-style:none;padding:0;margin:8px 0 10px;display:grid;gap:6px}
 .ped-itens li{background:var(--painel2);border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:900}
 #btnRanking,#btnPersonagem,#btnSair{font-size:1.15rem;padding:4px 10px;cursor:pointer}
@@ -277,10 +278,12 @@ body:not(.jogando) .alerta{display:none}
 <div id="hudEnt" aria-live="polite">
   <div class="ent-topo">
     <div class="ent-pista"><div class="ent-barra" id="entBarra"></div><span class="ent-moto" id="entMoto">🛵</span><span class="ent-casa">🏠</span></div>
+    <div class="pilula ent-moedas" id="entEscudo" title="Uma batida de tolerância">🛡️</div>
     <div class="pilula ent-moedas"><span>🪙</span><b id="entMoedas">0</b></div>
     <button class="pilula" id="btnAbandonar" type="button" aria-label="Desistir da entrega">✕</button>
   </div>
   <div class="ent-contagem" id="contagemEnt" hidden>3</div>
+  <div class="ent-aviso" id="entAviso" hidden></div>
   <div class="ent-dica" id="dicaEnt" hidden>Deslize ⬅️ ➡️ para trocar de faixa · ⬆️ pular · ⬇️ abaixar</div>
 </div>
 
@@ -1937,7 +1940,7 @@ function iniciarEntrega(){
   salvar();
   $('#telaPedido').hidden=true;
   limparPista(); posicionarSegmentos(); montarMoto();
-  Object.assign(ENT,{ativo:true,estado:'contagem',t:3,z:0,dist:0,vel:11,lane:1,x:0,y:0,vy:0,desl:0,moedas:0,prox:-26,
+  Object.assign(ENT,{ativo:true,estado:'contagem',t:3,z:0,dist:0,vel:9,lane:1,x:0,y:0,vy:0,desl:0,moedas:0,prox:-40,escudo:true,inv:0,
     alvo:480+Math.floor(Math.random()*120),valorMoeda:Math.max(1,Math.round(valorEst('refri')*0.25))});
   criarChegada(-ENT.alvo);
   ['cone','caixote','buraco','barreira','carro'].forEach(t=>criarObstaculo(t,1,40)); criarMoeda(1,40);
@@ -1950,7 +1953,10 @@ function iniciarEntrega(){
   $('#dicaEnt').hidden=false; $('#entMoedas').textContent='0'; atualizarHudEnt();
 }
 $('#btnSairEntregar').addEventListener('click',()=>{ SOM.marco(); iniciarEntrega(); });
+let tAvisoEnt=0;
+function avisoEnt(t){ const a=$('#entAviso'); a.textContent=t; a.hidden=false; clearTimeout(tAvisoEnt); tAvisoEnt=setTimeout(()=>{a.hidden=true;},2200); }
 function atualizarHudEnt(){
+  $('#entEscudo').style.display=ENT.escudo?'':'none';
   const f=Math.min(1,ENT.dist/ENT.alvo); $('#entBarra').style.width=(f*100)+'%'; $('#entMoto').style.left=(f*100)+'%';
   $('#entMoedas').textContent=ENT.moedas;
   const c=$('#contagemEnt'); if(ENT.estado==='contagem'){ c.hidden=false; c.textContent=ENT.t>1?Math.ceil(ENT.t-1):'Vai!'; } else c.hidden=true;
@@ -1972,7 +1978,7 @@ function encerrarEntrega(sucesso){
   setTimeout(()=>{ $('#telaFimEntrega').hidden=false; },sucesso?600:900);
 }
 function voltarParaAdega(){
-  ENT.ativo=false; ENT.estado=''; limparPista(); if(ENT.prPrev){ renderer.setPixelRatio(ENT.prPrev); ENT.prPrev=0; }
+  ENT.ativo=false; ENT.estado=''; limparPista(); $('#entAviso').hidden=true; if(motoCorpo) motoCorpo.visible=true; if(ENT.prPrev){ renderer.setPixelRatio(ENT.prPrev); ENT.prPrev=0; }
   $('#telaFimEntrega').hidden=true; $('#dicaEnt').hidden=true;
   document.body.classList.remove('entregando'); document.body.classList.add('jogando'); atualizarHUD(true);
 }
@@ -1991,13 +1997,17 @@ function atualizarEntrega(dt){
   const E=ENT;
   if(E.estado==='contagem'){ E.t-=dt; if(E.t<=0){ E.estado='correndo'; setTimeout(()=>{ $('#dicaEnt').hidden=true; },3500); } }
   if(E.estado==='correndo'){
-    E.vel=Math.min(24,11+E.dist*0.022); const avanco=E.vel*dt; E.z-=avanco; E.dist+=avanco;
-    while(E.prox>E.z-62&&E.prox>-E.alvo+28){ gerarLinha(E.prox); E.prox-=rnd(10.5,15)-Math.min(3,E.dist*0.004); }
+    E.vel=Math.min(21,9+E.dist*0.015); const avanco=E.vel*dt; E.z-=avanco; E.dist+=avanco;
+    while(E.prox>E.z-62&&E.prox>-E.alvo+28){ gerarLinha(E.prox); E.prox-=rnd(13.5,18.5)-Math.min(3,E.dist*0.004); }
     E.x+=(FAIXAS[E.lane]-E.x)*Math.min(1,dt*18);
     if(E.bufPulo>0){ E.bufPulo-=dt; if(E.y===0&&E.vy===0){ E.vy=8.2; E.desl=0; E.bufPulo=0; } }
     if(E.y>0||E.vy>0){ E.vy-=24*dt; E.y=Math.max(0,E.y+E.vy*dt); if(E.y===0) E.vy=0; }
     if(E.desl>0) E.desl-=dt;
-    for(const o of E.obs){ if(colide(o)){ E.estado='batida'; E.t=0.9; SOM.erro&&0; break; } }
+    if(E.inv>0) E.inv-=dt;
+    else for(const o of E.obs){ if(colide(o)){
+      if(E.escudo){ E.escudo=false; E.inv=1.6; cenaEnt.remove(o.g); E.obs.splice(E.obs.indexOf(o),1); SOM.erro(); avisoEnt('💥 Cuidado! Mais uma batida e o pedido se perde'); }
+      else { E.estado='batida'; E.t=0.9; }
+      break; } }
     for(let i=E.moedasObj.length-1;i>=0;i--){ const m=E.moedasObj[i]; m.rotation.z+=dt*4;
       if(Math.abs(m.position.z-E.z)<0.8&&Math.abs(m.position.x-E.x)<0.8&&Math.abs(m.position.y-(E.y+0.75))<1.0){ cenaEnt.remove(m); E.moedasObj.splice(i,1); E.moedas++; SOM.venda&&SOM.venda(); } }
     for(let i=E.obs.length-1;i>=0;i--){ if(E.obs[i].z>E.z+12){ cenaEnt.remove(E.obs[i].g); E.obs.splice(i,1); } }
@@ -2009,6 +2019,7 @@ function atualizarEntrega(dt){
   if(E.estado==='batida'){ E.t-=dt; motoCorpo.rotation.z=Math.min(1.2,(motoCorpo.rotation.z||0)+dt*3); if(E.t<=0&&E.estado==='batida'){ encerrarEntrega(false); } }
   if(E.estado==='chegou'){ E.vel=Math.max(0,E.vel-dt*18); E.z-=E.vel*dt; }
   moto.position.set(E.x,E.y,E.z);
+  if(motoCorpo) motoCorpo.visible=!(E.inv>0&&Math.floor(E.inv*10)%2===0);
   if(motoCorpo){ if(E.estado!=='batida') motoCorpo.rotation.z=(FAIXAS[E.lane]-E.x)*-0.18; motoCorpo.rotation.x=E.y>0?-0.15:0; piloto.userData.corpo.scale.y=E.desl>0?0.72:1; }
   camEnt.position.set(E.x*0.55,4.1,E.z+6.8); camEnt.lookAt(E.x*0.35,0.7,E.z-9);
   solEnt.position.set(E.x+4,10,E.z+4); solEnt.target.position.set(E.x,0,E.z-4);
