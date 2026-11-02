@@ -2111,7 +2111,8 @@ const PARCEIROS={
 };
 const pdrNovo=()=>({liberado:false,nivel:1,estante:0,parceiros:{ml:true,shopee:false,amazon:false},recebidos:0,retirados:0,ganho:0});
 function PDR(){ if(!S.pdr) S.pdr=pdrNovo(); return S.pdr; }
-const pdrPodeLiberar=()=>IDS.every(id=>S.est[id].aberta&&S.est[id].nivel>=50);
+const NIVEL_PDR=40;
+const pdrPodeLiberar=()=>IDS.every(id=>S.est[id].aberta&&S.est[id].nivel>=NIVEL_PDR);
 const capPdr=n=>8+4*((n||PDR().nivel)-1);
 const custoPdr=()=>Math.round(valorEst('refri')*400*Math.pow(1.35,PDR().nivel-1));
 const taxaPdr=k=>Math.max(1,Math.round(valorEst('refri')*PARCEIROS[k].fator));
@@ -2210,7 +2211,7 @@ $('#selos').appendChild(seloPdr);
 function posicionarPdr(){
   const p=PDR(), t=naTela(estantePdr.position.clone().setY(2.25));
   seloPdr.style.left=t.x+'px'; seloPdr.style.top=t.y+'px';
-  const txt=p.liberado?'📦 '+p.estante+'/'+capPdr():'🔒 📦 Nv 50';
+  const txt=p.liberado?'📦 '+p.estante+'/'+capPdr():'🔒 📦 Nv '+NIVEL_PDR;
   if(seloPdr.textContent!==txt) seloPdr.textContent=txt;
 }
 function renderPdr(){
@@ -2218,8 +2219,8 @@ function renderPdr(){
   const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
   add('<p class="txt">A Adega é ponto de retirada de <b>Mercado Livre</b>, <b>Shopee</b> e <b>Amazon</b>. A cada pacote deixado aqui, a Adega recebe um valor. Os clientes vêm buscar a encomenda e às vezes aproveitam para comprar.</p>');
   if(!p.liberado){
-    add('<p class="txt"><b>🔒 Libera quando todos os setores chegarem ao nível 50.</b></p>');
-    IDS.forEach(id=>{ const e=S.est[id], ok=e.aberta&&e.nivel>=50; add(`<div class="stat"><span>${EST[id].ic} ${EST[id].nome}</span><b>${ok?'✔ ':''}${e.aberta?'Nível '+e.nivel:'Fechado'} / 50</b></div>`); });
+    add('<p class="txt"><b>🔒 Libera quando todos os setores chegarem ao nível '+NIVEL_PDR+'.</b></p>');
+    IDS.forEach(id=>{ const e=S.est[id], ok=e.aberta&&e.nivel>=NIVEL_PDR; add(`<div class="stat"><span>${EST[id].ic} ${EST[id].nome}</span><b>${ok?'✔ ':''}${e.aberta?'Nível '+e.nivel:'Fechado'} / ${NIVEL_PDR}</b></div>`); });
     return;
   }
   add(`<div class="stat destaque"><span>Pacotes na estante</span><b>${p.estante} / ${capPdr()}</b></div>`);
