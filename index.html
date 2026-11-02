@@ -175,6 +175,37 @@ body.entregando .hud,body.entregando #selos,body.entregando #cobrancas,body.entr
 .ent-aviso{position:fixed;left:50%;top:22%;transform:translateX(-50%);width:min(90vw,440px);text-align:center;background:#E8433A;color:#fff;border:4px solid #2A1A12;border-radius:16px;box-shadow:0 5px 0 #2A1A12;padding:10px 14px;font-weight:900;font-size:1rem;z-index:7}
 .ped-itens{list-style:none;padding:0;margin:8px 0 10px;display:grid;gap:6px}
 .ped-itens li{background:var(--painel2);border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:900}
+.btn-papo{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 92px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#2F8FD8;color:#fff;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno)}
+body:not(.jogando) .btn-papo{display:none}
+.papo{display:flex;flex-direction:column;max-height:calc(100dvh - 40px)}
+.papo-topo{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.papo-abas{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.papo-abas button{border:3px solid var(--contorno);border-radius:12px;padding:8px 4px;background:var(--painel2);color:var(--texto);font:900 .9rem 'Nunito',sans-serif}
+.papo-abas button.ativo{background:#FFC93C;color:#2A1A12}
+.papo-lista{flex:1;min-height:180px;max-height:46dvh;overflow-y:auto;border:3px solid var(--contorno);border-radius:14px;padding:8px;background:var(--painel2);display:flex;flex-direction:column;gap:8px}
+.papo-msg{display:flex;gap:8px;align-items:flex-start;background:var(--painel);border-radius:12px;padding:6px 8px;border:2px solid color-mix(in srgb,var(--contorno) 25%,transparent)}
+.papo-msg.eu{background:color-mix(in srgb,#FFC93C 22%,var(--painel))}
+.papo-msg .rosto{width:34px;height:34px;border-radius:50%;border:2px solid #2A1A12;background:#FFE7A0;flex:none;object-fit:cover;display:flex;align-items:center;justify-content:center}
+.papo-corpo{flex:1;min-width:0}
+.papo-nome{font-weight:900;font-size:.82rem;display:flex;justify-content:space-between;gap:6px}
+.papo-hora{font-weight:800;color:var(--sub);font-size:.75rem}
+.papo-texto{font-weight:800;font-size:.95rem;word-wrap:break-word;overflow-wrap:anywhere}
+.papo-vazio{color:var(--sub);font-weight:800;text-align:center;margin:auto 8px}
+.papo-curtir,.papo-denunciar{flex:none;border:2px solid var(--contorno);border-radius:10px;background:var(--painel2);color:var(--texto);font:900 .85rem 'Nunito',sans-serif;padding:5px 8px;min-height:34px}
+.papo-curtir.ativo{background:#3CB371;color:#fff}
+.papo-denunciar{color:#C2362B}
+.papo-denunciar:disabled{opacity:.6;font-size:.7rem}
+.papo-aviso{margin:6px 0 0;padding:8px 10px;border-radius:10px;background:#DDF5E6;color:#1F4D3A;font-weight:900;font-size:.9rem}
+.papo-aviso.erro{background:#FDE2DF;color:#9E2A20}
+.papo-rodape{margin-top:8px}
+.papo-frases{display:flex;flex-wrap:wrap;gap:6px;max-height:24dvh;overflow-y:auto}
+.papo-frases button{border:2px solid var(--contorno);border-radius:999px;background:var(--painel);color:var(--texto);font:800 .85rem 'Nunito',sans-serif;padding:7px 10px}
+.papo-rodape textarea,.papo-linha input{width:100%;font:800 1rem 'Nunito',sans-serif;border:3px solid var(--contorno);border-radius:12px;padding:10px;background:var(--campo,#FFF6D6);color:#2A1A12;resize:none}
+.papo-rodape textarea{margin-bottom:8px}
+.papo-linha{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:stretch}
+.papo-nota{color:var(--sub);font-weight:800;font-size:.85rem;margin:6px 0 0;text-align:center}
+.papo-regras{background:var(--painel2);border:3px dashed var(--contorno);border-radius:12px;padding:10px 12px;font-weight:800;font-size:.9rem}
+.papo-regras ul{margin:6px 0 10px 18px}
 #btnRanking,#btnPersonagem,#btnSair{font-size:1.15rem;padding:4px 10px;cursor:pointer}
 .abas{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .aba{border:3px solid var(--contorno);border-radius:12px;background:var(--painel2);padding:8px;font-weight:900}
@@ -274,6 +305,21 @@ body:not(.jogando) .alerta{display:none}
 </section>
 
 <button class="btn-entregas" id="btnEntregas" type="button" hidden>🛵 Entregas</button>
+<button class="btn-papo" id="btnPapo" type="button" aria-label="Papo da Adega">💬 Papo</button>
+
+<section class="tela" id="telaPapo" hidden>
+  <div class="caixa papo">
+    <div class="papo-topo"><h2 class="titulo" style="font-size:1.8rem">Papo da Adega</h2><button class="pilula" id="btnPapoFechar" type="button" aria-label="Fechar">✕</button></div>
+    <div class="papo-abas" role="tablist">
+      <button type="button" data-aba="rapido" class="ativo">💬 Rápido</button>
+      <button type="button" data-aba="ideias">💡 Ideias</button>
+      <button type="button" data-aba="chat">🗨️ Chat</button>
+    </div>
+    <div class="papo-lista" id="papoLista" aria-live="polite"></div>
+    <p class="papo-aviso" id="papoAviso" hidden></p>
+    <div class="papo-rodape" id="papoRodape"></div>
+  </div>
+</section>
 
 <div id="hudEnt" aria-live="polite">
   <div class="ent-topo">
@@ -2046,6 +2092,111 @@ addEventListener('pointercancel',()=>{ toqueEnt=null; },{passive:true});
 addEventListener('keydown',e=>{ if(!ENT.ativo) return; const k=e.key;
   if(k==='ArrowLeft'||k==='a') comandoEnt('esq'); else if(k==='ArrowRight'||k==='d') comandoEnt('dir');
   else if(k==='ArrowUp'||k==='w'||k===' ') comandoEnt('pula'); else if(k==='ArrowDown'||k==='s') comandoEnt('abaixa'); });
+
+// ================= Papo da Adega (conversa rápida, ideias e chat) =================
+const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
+  'Peguei meu cupom! 🎟️','Minha adega tá bombando! 🔥','Estoque cheio, tudo certo! 📦','Alguém tem uma dica? 🤔','Valeu, pessoal! 🙏','Rumo ao nível 25! 🚀',
+  'Contratei o gerente! 👔','Que corrida difícil! 😅','Até amanhã! 😴','Partiu Adega do Edu! 🧊'];
+const MSG_PAPO={devagar:'Calma! Espere alguns segundos antes de enviar de novo.',sem_links:'Não é permitido enviar links, @, telefones ou redes sociais.',
+  silenciado:'Você está silenciado pela moderação e não pode enviar mensagens agora.',muitas_pendentes:'Você já tem 3 ideias aguardando aprovação. Espere a Adega revisar.',
+  texto_invalido:'Escreva uma mensagem (ideias: de 5 a 280 letras; chat: até 150).',chat_desligado:'O chat livre ainda não está aberto.',
+  fora_horario:'O chat livre está fora do horário de funcionamento.',chat_bloqueado:'Complete 8 tarefas para liberar o chat livre.'};
+let abaPapo='rapido', dadosPapo=null, tPapo=0, chaveRodape='';
+const papoOnline=()=>rankingAtivo()&&S.perfil&&S.perfil.id;
+const horaPapo=t=>{ const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+function msgPapo(m,texto,extra){
+  const li=document.createElement('div'); li.className='papo-msg'+(m.eu?' eu':'');
+  const u=m.visual?rostoURL(m.visual):''; if(u){ const im=document.createElement('img'); im.className='rosto'; im.alt=''; im.src=u; li.appendChild(im); }
+  else { const sp=document.createElement('span'); sp.className='rosto vazio'; sp.textContent='🙂'; li.appendChild(sp); }
+  const c=document.createElement('div'); c.className='papo-corpo';
+  const n=document.createElement('div'); n.className='papo-nome'; n.textContent=m.apelido+(m.eu?' (você)':''); const h=document.createElement('span'); h.className='papo-hora'; h.textContent=horaPapo(m.criado_em); n.appendChild(h);
+  const t=document.createElement('div'); t.className='papo-texto'; t.textContent=texto;
+  c.append(n,t); li.appendChild(c); if(extra) li.appendChild(extra); return li;
+}
+function avisoPapo(t,erro){ const a=$('#papoAviso'); a.textContent=t; a.className='papo-aviso'+(erro?' erro':''); a.hidden=!t; }
+let chaveLista='';
+function renderListaPapo(){
+  const L=$('#papoLista'), d=dadosPapo; if(!d) return;
+  const ch=abaPapo+'|'+JSON.stringify(abaPapo==='rapido'?d.rapido:abaPapo==='ideias'?d.ideias:[d.status.ligado,d.chat]);
+  if(ch===chaveLista) return; chaveLista=ch;
+  const noFim=L.scrollHeight-L.scrollTop-L.clientHeight<40; L.innerHTML='';
+  if(abaPapo==='rapido'){
+    if(!d.rapido.length) L.innerHTML='<p class="papo-vazio">Ninguém mandou mensagem ainda. Seja o primeiro! 👇</p>';
+    d.rapido.forEach(m=>L.appendChild(msgPapo(m,FRASES_PAPO[m.frase]||'')));
+  }
+  if(abaPapo==='ideias'){
+    if(!d.ideias.length) L.innerHTML='<p class="papo-vazio">Ainda não há ideias publicadas. Mande a sua: ela aparece aqui depois que a Adega aprovar.</p>';
+    d.ideias.forEach(m=>{ const b=document.createElement('button'); b.type='button'; b.className='papo-curtir'+(m.curti?' ativo':''); b.textContent='👍 '+m.curtidas;
+      b.addEventListener('click',()=>acaoPapo('papo_curtir',{p_ideia:m.id})); L.appendChild(msgPapo(m,m.texto,b)); });
+  }
+  if(abaPapo==='chat'){
+    const s=d.status;
+    if(!s.ligado) L.innerHTML='<p class="papo-vazio">🗨️ O chat livre abre em breve! Enquanto isso, use a conversa rápida e mande suas ideias.</p>';
+    else {
+      if(!d.chat.length) L.innerHTML='<p class="papo-vazio">Nenhuma mensagem nos últimos dias.</p>';
+      d.chat.forEach(m=>{ let b=null; if(!m.eu){ b=document.createElement('button'); b.type='button'; b.className='papo-denunciar'; b.title='Denunciar mensagem';
+          b.textContent=m.denunciei?'Denunciada':'⚑'; b.disabled=m.denunciei; b.addEventListener('click',()=>{ if(confirm('Denunciar esta mensagem para a moderação?')) acaoPapo('papo_denunciar',{p_msg:m.id},'Mensagem denunciada. Obrigado por ajudar a manter o respeito!'); }); }
+        L.appendChild(msgPapo(m,m.texto,b)); });
+    }
+  }
+  if(abaPapo!=='ideias'&&(noFim||!L.dataset.rolou)){ L.scrollTop=L.scrollHeight; L.dataset.rolou='1'; }
+}
+function renderRodapePapo(){
+  const R=$('#papoRodape'), d=dadosPapo, s=d&&d.status;
+  const chave=abaPapo+'|'+(s?[s.ligado,s.aberto,s.tarefa>=s.minimo,!!s.silenciado_ate,!!S.regrasChat,d.pendentes].join(','):'');
+  if(chave===chaveRodape) return; chaveRodape=chave; R.innerHTML='';
+  if(!d) return;
+  if(abaPapo==='rapido'){
+    const g=document.createElement('div'); g.className='papo-frases';
+    FRASES_PAPO.forEach((f,i)=>{ const b=document.createElement('button'); b.type='button'; b.textContent=f; b.addEventListener('click',()=>acaoPapo('papo_enviar_rapido',{p_frase:i})); g.appendChild(b); });
+    R.appendChild(g);
+  }
+  if(abaPapo==='ideias'){
+    R.innerHTML='<textarea id="papoIdeia" maxlength="280" rows="2" placeholder="Sua ideia para o jogo ou para a Adega do Edu (até 280 letras)"></textarea><button class="btn peq" id="papoEnviarIdeia" type="button">Enviar ideia</button>'+
+      (d.pendentes?`<p class="papo-nota">⏳ Você tem ${d.pendentes} ${d.pendentes===1?'ideia':'ideias'} aguardando aprovação.</p>`:'<p class="papo-nota">As ideias aparecem para todos depois que a Adega aprovar.</p>');
+    $('#papoEnviarIdeia').addEventListener('click',async()=>{ const t=$('#papoIdeia').value; if(await acaoPapo('papo_enviar_ideia',{p_texto:t},'Ideia enviada! Ela aparece aqui depois que a Adega aprovar. 💡')){ $('#papoIdeia').value=''; } });
+  }
+  if(abaPapo==='chat'){
+    if(!s.ligado) return;
+    let bloq='';
+    if(!s.aberto) bloq=`⏰ O chat funciona das ${s.inicio}h às ${s.fim}h.`;
+    else if(s.tarefa<s.minimo) bloq=`🔒 Complete ${s.minimo} tarefas para escrever no chat (você está na ${Math.min(s.tarefa,s.minimo)}ª).`;
+    else if(s.silenciado_ate) bloq='🔇 Você foi silenciado pela moderação e não pode escrever agora.';
+    if(bloq){ R.innerHTML=`<p class="papo-nota">${bloq}</p>`; return; }
+    if(!S.regrasChat){
+      R.innerHTML='<div class="papo-regras"><b>Regras do chat</b><ul><li>Respeito com todos: nada de ofensas, preconceito ou provocação.</li><li>Sem links, @, telefones ou redes sociais.</li><li>Sem venda ou troca de produtos e cupons.</li><li>Mensagens denunciadas são revisadas, e quem desrespeitar pode ser silenciado.</li></ul><button class="btn peq" id="papoAceitar" type="button">Li e aceito as regras</button></div>';
+      $('#papoAceitar').addEventListener('click',()=>{ S.regrasChat=true; salvar(); chaveRodape=''; renderRodapePapo(); });
+      return;
+    }
+    R.innerHTML='<div class="papo-linha"><input id="papoTexto" maxlength="150" placeholder="Escreva uma mensagem…" autocomplete="off"><button class="btn peq" id="papoEnviarChat" type="button">Enviar</button></div>';
+    const enviar=async()=>{ const t=$('#papoTexto').value; if(await acaoPapo('papo_enviar_chat',{p_texto:t})) $('#papoTexto').value=''; };
+    $('#papoEnviarChat').addEventListener('click',enviar);
+    $('#papoTexto').addEventListener('keydown',e=>{ if(e.key==='Enter') enviar(); });
+  }
+}
+function renderPapo(){
+  document.querySelectorAll('.papo-abas button').forEach(b=>b.classList.toggle('ativo',b.dataset.aba===abaPapo));
+  if(!papoOnline()){ $('#papoLista').innerHTML='<p class="papo-vazio">O Papo da Adega funciona na versão online do jogo, com o seu cadastro.</p>'; $('#papoRodape').innerHTML=''; chaveRodape=''; return; }
+  if(!dadosPapo){ $('#papoLista').innerHTML='<p class="papo-vazio">Carregando…</p>'; return; }
+  renderListaPapo(); renderRodapePapo();
+}
+async function carregarPapo(){
+  if(!papoOnline()) return;
+  try{ dadosPapo=await rpc('papo_listar',{p_id:S.perfil.id,p_token:S.perfil.token}); renderPapo(); }
+  catch(e){ if(!dadosPapo){ $('#papoLista').innerHTML='<p class="papo-vazio">Não foi possível carregar o Papo da Adega agora. Confira a internet.</p>'; } }
+}
+async function acaoPapo(fn,args,ok){
+  if(!papoOnline()) return false;
+  try{ await rpc(fn,Object.assign({p_id:S.perfil.id,p_token:S.perfil.token},args)); avisoPapo(ok||'',false); if(ok) setTimeout(()=>avisoPapo(''),3500); SOM.abrir(); await carregarPapo(); return true; }
+  catch(e){ const k=Object.keys(MSG_PAPO).find(x=>e.message.indexOf(x)>=0); avisoPapo(k?MSG_PAPO[k]:'Não foi possível enviar agora. Confira a internet.',true); setTimeout(()=>avisoPapo(''),4500); return false; }
+}
+function abrirPapo(){
+  $('#telaPapo').hidden=false; chaveRodape=''; chaveLista=''; avisoPapo(''); $('#papoLista').dataset.rolou=''; renderPapo(); carregarPapo();
+  clearInterval(tPapo); tPapo=setInterval(()=>{ if($('#telaPapo').hidden){ clearInterval(tPapo); return; } carregarPapo(); },6000);
+}
+$('#btnPapo').addEventListener('click',()=>{ SOM.abrir(); abrirPapo(); });
+$('#btnPapoFechar').addEventListener('click',()=>{ $('#telaPapo').hidden=true; clearInterval(tPapo); });
+document.querySelectorAll('.papo-abas button').forEach(b=>b.addEventListener('click',()=>{ abaPapo=b.dataset.aba; chaveRodape=''; chaveLista=''; $('#papoLista').dataset.rolou=''; avisoPapo(''); renderPapo(); }));
 
 // ================= Sair do jogo =================
 function mostrarSaiu(){

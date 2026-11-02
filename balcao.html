@@ -55,6 +55,20 @@ th{color:var(--sub);font-weight:700;font-size:.8rem}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
 .vazio{color:var(--sub);font-size:.9rem;margin:6px 0}
 .rolagem{overflow-x:auto}
+.mod-item{border:2px solid var(--borda);border-radius:12px;padding:10px;margin:8px 0;background:var(--fundo)}
+.mod-item.alerta{border-color:var(--vermelho);background:var(--vermelho-claro)}
+.mod-item .quem{font-weight:900;font-size:.9rem;display:flex;justify-content:space-between;gap:8px}
+.mod-item .quem span{color:var(--sub);font-weight:700;font-size:.8rem}
+.mod-item .txt{margin:6px 0 8px;font-size:1rem;word-wrap:break-word}
+.mod-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.mod-acoes button{padding:8px 12px;font-size:.9rem}
+.mod-acoes .ok{background:#3CB371;color:#fff}
+.mod-acoes .nao{background:#C2362B;color:#fff}
+.mod-linha{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.mod-linha input,.mod-linha select{padding:9px 10px;border:2px solid var(--borda);border-radius:10px;font-size:1rem;background:var(--fundo);color:var(--texto)}
+.mod-linha input[type=number]{width:70px}
+.chave-chat{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;font-weight:900}
+.chave-chat.on{background:var(--verde-claro)}.chave-chat.off{background:var(--fundo);border:2px solid var(--borda)}
 </style>
 </head>
 <body>
@@ -76,6 +90,11 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
       <button id="btnUsar" type="button" class="prim" disabled>Dar baixa</button>
     </div>
     <div id="resultado" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="cartao" id="boxModeracao">
+    <div class="cab-res"><h2>🛡️ Moderação do Papo</h2><button type="button" id="btnModeracao">Atualizar</button></div>
+    <div id="moderacao"><p class="vazio">Digite a senha e toque em Atualizar para moderar o Papo da Adega.</p></div>
   </section>
 
   <section class="cartao" id="boxOnline">
@@ -207,6 +226,54 @@ async function carregarOnline(){
 $('#btnOnline').addEventListener('click',carregarOnline);
 setInterval(()=>{ if($('#senha').value&&document.visibilityState==='visible') carregarOnline(); },30000);
 if($('#senha').value) setTimeout(carregarOnline,500);
+// ---------- Moderação do Papo da Adega ----------
+async function acaoMod(fn,args){
+  try{ await rpc(fn,Object.assign({p_senha:$('#senha').value},args)); await carregarModeracao(); return true; }
+  catch(e){ const k=Object.keys(MSG).find(x=>e.message.indexOf(x)>=0); alert(k?MSG[k]:(/apelido_nao_encontrado/.test(e.message)?'Apelido não encontrado.':'Não foi possível concluir agora.')); return false; }
+}
+function botao(txt,cls,fn){ const b=el('button',cls,txt); b.type='button'; b.addEventListener('click',fn); return b; }
+async function carregarModeracao(){
+  const senha=$('#senha').value, box=$('#moderacao');
+  if(!senha){ box.innerHTML='<p class="vazio">Digite a senha do balcão lá em cima.</p>'; return; }
+  try{
+    const r=await rpc('mod_listar',{p_senha:senha}); box.innerHTML='';
+    // chat livre: ligar/desligar e horário
+    const on=r.config.chat_livre==='on';
+    const ch=el('div','chave-chat '+(on?'on':'off')); ch.append(el('span','',on?'🗨️ Chat livre: LIGADO':'🗨️ Chat livre: DESLIGADO'),
+      botao(on?'Desligar':'Ligar chat',on?'nao':'ok',()=>{ if(on||confirm('Ligar o chat livre para os jogadores com 8 tarefas ou mais?')) acaoMod('mod_config',{p_chave:'chat_livre',p_valor:on?'off':'on'}); }));
+    box.appendChild(ch);
+    const hr=el('div','mod-linha'); const ini=el('input'); ini.type='number'; ini.min=0; ini.max=24; ini.value=r.config.inicio; const fim=el('input'); fim.type='number'; fim.min=0; fim.max=24; fim.value=r.config.fim;
+    hr.append(el('span','','Horário do chat: das'),ini,el('span','','às'),fim,botao('Salvar horário','',async()=>{ if(await acaoMod('mod_config',{p_chave:'chat_hora_inicio',p_valor:String(ini.value)})) acaoMod('mod_config',{p_chave:'chat_hora_fim',p_valor:String(fim.value)}); }));
+    box.appendChild(hr);
+    // ideias aguardando
+    box.appendChild(el('div','sub-tit','💡 Ideias aguardando aprovação ('+r.ideias.length+')'));
+    if(!r.ideias.length) box.appendChild(el('p','vazio','Nenhuma ideia aguardando.'));
+    r.ideias.forEach(i=>{ const it=el('div','mod-item'); const q=el('div','quem',i.apelido); q.appendChild(el('span','',dataHora(i.criado_em))); it.append(q,el('div','txt',i.texto));
+      const a=el('div','mod-acoes'); a.append(botao('✔ Aprovar','ok',()=>acaoMod('mod_ideia',{p_ideia:i.id,p_acao:'aprovar'})),botao('✖ Recusar','nao',()=>acaoMod('mod_ideia',{p_ideia:i.id,p_acao:'recusar'}))); it.appendChild(a); box.appendChild(it); });
+    // mensagens do chat
+    const ocultas=r.chat.filter(m=>m.oculta).length;
+    box.appendChild(el('div','sub-tit','🗨️ Mensagens do chat'+(ocultas?' · 🚩 '+ocultas+' escondida(s) por denúncia':'')));
+    if(!r.chat.length) box.appendChild(el('p','vazio','Nenhuma mensagem no chat.'));
+    r.chat.forEach(m=>{ const it=el('div','mod-item'+(m.oculta?' alerta':'')); const q=el('div','quem',(m.oculta?'🚩 ':'')+m.apelido); q.appendChild(el('span','',dataHora(m.criado_em)+(m.denuncias?' · '+m.denuncias+' denúncia(s)':''))); it.append(q,el('div','txt',m.texto));
+      const a=el('div','mod-acoes'); if(m.oculta||m.denuncias) a.appendChild(botao('↩ Restaurar','ok',()=>acaoMod('mod_chat',{p_msg:m.id,p_acao:'restaurar'})));
+      a.appendChild(botao('🗑 Apagar','nao',()=>{ if(confirm('Apagar esta mensagem?')) acaoMod('mod_chat',{p_msg:m.id,p_acao:'apagar'}); }));
+      a.appendChild(botao('🔇 Silenciar '+m.apelido,'',()=>{ const d=prompt('Silenciar '+m.apelido+' por quantos dias? (0 = remover, 9999 = para sempre)','7'); if(d!==null) acaoMod('mod_silenciar',{p_apelido:m.apelido,p_dias:parseInt(d,10)||0}); }));
+      it.appendChild(a); box.appendChild(it); });
+    // silenciar
+    box.appendChild(el('div','sub-tit','🔇 Silenciar jogador'));
+    const sl=el('div','mod-linha'); const ap=el('input'); ap.placeholder='Apelido'; const sel=el('select');
+    [['1','1 dia'],['7','7 dias'],['30','30 dias'],['9999','Para sempre'],['0','Remover silêncio']].forEach(o=>{ const op=el('option','',o[1]); op.value=o[0]; sel.appendChild(op); });
+    sl.append(ap,sel,botao('Aplicar','nao',()=>{ if(ap.value.trim()) acaoMod('mod_silenciar',{p_apelido:ap.value.trim(),p_dias:parseInt(sel.value,10)}); }));
+    box.appendChild(sl);
+    if(r.silenciados.length){ box.appendChild(tabela([['Silenciado'],['Até',1],['']],r.silenciados.map(x=>[x.apelido,/infinity/i.test(String(x.ate))||new Date(x.ate).getFullYear()>9000?'para sempre':dataHora(x.ate),'']))); 
+      box.lastChild.querySelectorAll('tr').forEach((tr,k)=>{ if(k===0) return; const td=tr.lastChild; td.appendChild(botao('Remover','',()=>acaoMod('mod_silenciar',{p_apelido:r.silenciados[k-1].apelido,p_dias:0}))); }); }
+  }catch(e){
+    box.innerHTML=''; const k=Object.keys(MSG).find(x=>e.message.indexOf(x)>=0);
+    box.appendChild(el('p','vazio',k?MSG[k]:(/mod_listar/.test(e.message)?'A moderação ainda não foi instalada no banco. Rode o supabase-papo.sql no Supabase.':'Não foi possível carregar agora. Confira a internet.')));
+  }
+}
+$('#btnModeracao').addEventListener('click',carregarModeracao);
+if($('#senha').value) setTimeout(carregarModeracao,700);
 $('#btnResumo').addEventListener('click',carregarResumo);
 if($('#senha').value) setTimeout(carregarResumo,300);
 $('#btnUsar').addEventListener('click',async()=>{
