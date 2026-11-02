@@ -55,6 +55,8 @@ body:not(.jogando) .hud{display:none}
 
 .selo{position:fixed;left:0;top:0;translate:-50% -100%;z-index:4;display:flex;align-items:center;gap:4px;border:3px solid var(--contorno);border-radius:12px;background:#fff;color:#2A1A12;padding:3px 8px;font-weight:900;font-size:.85rem;box-shadow:0 3px 0 #2A1A12;white-space:nowrap;cursor:pointer}
 .selo.pode{background:#C9F7D8}
+.selo-pdr{position:fixed;left:0;top:0;translate:-50% -100%;z-index:4;border:3px solid var(--contorno);border-radius:12px;background:#FFE7A0;color:#2A1A12;padding:3px 9px;font:900 .85rem 'Nunito',sans-serif;box-shadow:0 3px 0 #2A1A12;white-space:nowrap}
+body:not(.jogando) .selo-pdr{display:none}
 .selo .seta{display:none;width:18px;height:18px;border-radius:50%;background:var(--verde);color:#fff;font-size:.8rem;place-items:center;border:2px solid #2A1A12;animation:sobe .8s ease-in-out infinite}
 .selo.pode .seta{display:grid}
 @keyframes sobe{50%{transform:translateY(-3px)}}
@@ -306,6 +308,13 @@ body:not(.jogando) .alerta{display:none}
 
 <button class="btn-entregas" id="btnEntregas" type="button" hidden>🛵 Entregas</button>
 <button class="btn-papo" id="btnPapo" type="button" aria-label="Papo da Adega">💬 Papo</button>
+
+<section class="tela" id="telaPdr" hidden>
+  <div class="caixa">
+    <div class="papo-topo"><h2 class="titulo" style="font-size:1.7rem">📦 Ponto de Retirada</h2><button class="pilula" id="btnPdrFechar" type="button" aria-label="Fechar">✕</button></div>
+    <div id="pdrConteudo"></div>
+  </div>
+</section>
 
 <section class="tela" id="telaPapo" hidden>
   <div class="caixa papo">
@@ -658,7 +667,6 @@ function planta(x,z,s){
   contorno(malha(new THREE.CylinderGeometry(0.28,0.22,0.45,16),toon(0xD9643A),g,0,0.22,0),0.025);
   const f=toon(0x3E9B57);[[0,0.75,0,0.36],[0.18,0.62,0.1,0.26],[-0.18,0.64,-0.05,0.27]].forEach(p=>{const m=malha(ESF,f,g,p[0],p[1],p[2]);m.scale.setScalar(p[3]);contorno(m,0.025);});
 }
-planta(-4.4,-4.4);
 // Tapete da entrada
 malha(new THREE.BoxGeometry(1.4,0.03,0.9),toon(0xC2362B),scene,-1.1,0.06,4.75,false);
 
@@ -1136,7 +1144,7 @@ function novoCliente(){
 function irPara(c,dest){ c.caminho=rota(c.g.position,dest); }
 function proximoAlvo(c){
   while(c.lista.length&&S.est[c.lista[0]].estoque<=0){ pop(c.g.position.clone().setY(1.8),'😕 Acabou '+EST[c.lista[0]].ic,'ruim'); c.lista.shift(); }
-  if(!c.lista.length&&c.valor<=0){ pop(c.g.position.clone().setY(2.1),'Saiu sem comprar','ruim'); c.g.userData.sacola.visible=false; c.estado='saindo'; c.caminho=rota(c.g.position,PORTA).concat([FORA_PORTA.clone(),SAIDA.clone()]); return; }
+  if(!c.lista.length&&c.valor<=0&&!c.retirada){ pop(c.g.position.clone().setY(2.1),'Saiu sem comprar','ruim'); c.g.userData.sacola.visible=false; c.estado='saindo'; c.caminho=rota(c.g.position,PORTA).concat([FORA_PORTA.clone(),SAIDA.clone()]); return; }
   if(c.lista.length){
     const id=c.lista[0], v=vagasEst[id], s=v.indexOf(null);
     if(s>=0){ v[s]=c; c.est=id; c.slot=s; c.estado='indoEst'; irPara(c,pontoEst(id,s)); }
@@ -1172,6 +1180,7 @@ const baloesCobrar=[0,1,2].map(k=>{
 });
 function cobrar(c,modo){
   const k=c.caixa; pagando[k]=null; baloesCobrar[k].style.display='none';
+  if(c.retirada&&!c.retirou) marcarRetirada(c);
   const topo=c.g.position.clone().setY(2.0);
   S.total+=c.valor; registrarGanho(c.valor);
   if(modo==='manual'){
@@ -1222,7 +1231,7 @@ function posicionarMesas(){
 function posicionarCobrancas(){
   for(let k=0;k<3;k++){
     const c=pagando[k], b=baloesCobrar[k];
-    if(!c||c.estado!=='noCaixa'||!document.body.classList.contains('jogando')||(k===0&&caixaAusente())){ b.style.display='none'; continue; }
+    if(!c||c.estado!=='noCaixa'||!document.body.classList.contains('jogando')||(k===0&&caixaAusente())||(c.retirada&&c.valor<=0)){ b.style.display='none'; continue; }
     const t=naTela(c.g.position.clone().setY(1.95));
     b.style.display='flex'; b.style.left=t.x+'px'; b.style.top=t.y+'px';
     const auto=automatico(k), barra=b.querySelector('.br i');
@@ -1258,6 +1267,7 @@ function atualizarClientes(dt){
       case 'fila': mover(c,dt); if(!c.caminho.length) olhar(c,new THREE.Vector3(0,0,-1)); break;
       case 'indoPagar': if(mover(c,dt)){ c.estado='noCaixa'; c.t=0; } break;
       case 'noCaixa':
+        if(c.retirada&&c.valor<=0){ olhar(c,new THREE.Vector3(0,0,-1)); if(!(c.caixa===0&&caixaAusente())){ c.t+=dt; if(c.t>=1.0) entregarPacote(c); } break; }
         olhar(c,new THREE.Vector3(0,0,-1));
         if(!(c.caixa===0&&caixaAusente())){ c.t+=dt; if(automatico(c.caixa)&&c.t>=tempoPagar()) cobrar(c,'auto'); }
         break;
@@ -1271,7 +1281,7 @@ function atualizarClientes(dt){
           c.estado='saindo'; c.caminho=[a.aprox.clone()].concat(rota(a.aprox,PORTA)).concat([FORA_PORTA.clone(),SAIDA.clone()]);
         }
         break;}
-      case 'saindo': if(mover(c,dt)){ scene.remove(c.g); clientes.splice(i,1); } break;
+      case 'saindo': if(mover(c,dt)){ if(c.retirada&&!c.retirou) pdrEmRota=Math.max(0,pdrEmRota-1); scene.remove(c.g); clientes.splice(i,1); } break;
     }
   }
   for(let k=0;k<S.caixas;k++){
@@ -2093,6 +2103,148 @@ addEventListener('keydown',e=>{ if(!ENT.ativo) return; const k=e.key;
   if(k==='ArrowLeft'||k==='a') comandoEnt('esq'); else if(k==='ArrowRight'||k==='d') comandoEnt('dir');
   else if(k==='ArrowUp'||k==='w'||k===' ') comandoEnt('pula'); else if(k==='ArrowDown'||k==='s') comandoEnt('abaixa'); });
 
+// ================= Ponto de Retirada (Mercado Livre, Shopee e Amazon) =================
+const PARCEIROS={
+  ml:{nome:'Mercado Livre',cor:'#FFE14D',txt:'#2D3277',fator:18,ativar:0},
+  shopee:{nome:'Shopee',cor:'#EE4D2D',txt:'#FFFFFF',fator:15,ativar:2000},
+  amazon:{nome:'Amazon',cor:'#232F3E',txt:'#FF9900',fator:22,ativar:4000}
+};
+const pdrNovo=()=>({liberado:false,nivel:1,estante:0,parceiros:{ml:true,shopee:false,amazon:false},recebidos:0,retirados:0,ganho:0});
+function PDR(){ if(!S.pdr) S.pdr=pdrNovo(); return S.pdr; }
+const pdrPodeLiberar=()=>IDS.every(id=>S.est[id].aberta&&S.est[id].nivel>=50);
+const capPdr=n=>8+4*((n||PDR().nivel)-1);
+const custoPdr=()=>Math.round(valorEst('refri')*400*Math.pow(1.35,PDR().nivel-1));
+const taxaPdr=k=>Math.max(1,Math.round(valorEst('refri')*PARCEIROS[k].fator));
+const custoAtivarPdr=k=>Math.round(valorEst('refri')*PARCEIROS[k].ativar);
+let pdrEmRota=0, tSpawnPdr=5;
+
+// ---------- Estante no canto do fundo ----------
+const estantePdr=new THREE.Group(); estantePdr.position.set(-3.7,0,-4.3); scene.add(estantePdr);
+(function(){
+  const mad=toon(0xC9A06A), escura=toon(0x8B6A43);
+  [0.06,0.56,1.06,1.56].forEach(y=>bloco(1.72,0.05,0.62,mad,estantePdr,0,y,0,0.01,0.01));
+  [-0.84,0.84].forEach(x=>bloco(0.06,1.62,0.62,escura,estantePdr,x,0.81,0,0.01,0.01));
+  bloco(1.72,1.62,0.04,escura,estantePdr,0,0.81,-0.3,0.01,0.01);
+  const tx=texCanvas(512,96,(c)=>{ c.fillStyle='#1F4D3A'; c.fillRect(0,0,512,96); c.fillStyle='#FFC93C'; c.font="bold 50px Nunito, sans-serif"; c.textAlign='center'; c.textBaseline='middle'; c.fillText('📦 Ponto de Retirada',256,50); });
+  contorno(bloco(1.74,0.32,0.06,toon(0x1F4D3A),estantePdr,0,1.8,0.25,0.02,0.02),0.02);
+  malha(new THREE.PlaneGeometry(1.66,0.29),new THREE.MeshBasicMaterial({map:tx}),estantePdr,0,1.8,0.285,false);
+})();
+const caixasPdr=[];
+(function(){
+  const cores=[0xC9935A,0xD8A86B,0xB8844F,0xE0B77D], fita=toon(0xEDE3C8);
+  [0.09,0.59,1.09].forEach((y0,n)=>{ for(let k=0;k<8;k++){
+    const w=rnd(0.15,0.2), h=rnd(0.16,0.34), g=new THREE.Group(); g.position.set(-0.72+k*0.205,y0+h/2,rnd(-0.06,0.06)); g.rotation.y=rnd(-0.12,0.12); estantePdr.add(g);
+    contorno(malha(geoArred(w,h,0.32,0.015),toon(cores[(n*3+k)%4]),g,0,0,0),0.012); bloco(w*0.22,h*1.02,0.325,fita,g,0,0,0);
+    g.visible=false; caixasPdr.push(g); } });
+})();
+hit('pdr',estantePdr,1.8,2.0,0.8,0,1.0,0);
+marcar(-4.6,-2.8,-4.75,-3.9);
+function atualizarCaixasPdr(){ const p=PDR(), n=p.liberado?Math.ceil(caixasPdr.length*Math.min(1,p.estante/capPdr())):0; caixasPdr.forEach((c,i)=>c.visible=i<n); }
+
+// ---------- Van do parceiro ----------
+const vanPdr=new THREE.Group(); vanPdr.visible=false; scene.add(vanPdr);
+const rodasVan=[]; let ladoVan=null;
+(function(){
+  const g=vanPdr;
+  contorno(malha(geoArred(2.5,1.35,1.35,0.12),toon(0xF4F4F0),g,-0.3,1.05,0),0.03);
+  contorno(malha(geoArred(0.95,1.0,1.3,0.14),toon(0xF4F4F0),g,1.35,0.85,0),0.03);
+  bloco(0.5,0.45,1.32,toon(0x9FD3EA),g,1.55,1.1,0);
+  ladoVan=malha(new THREE.PlaneGeometry(2.3,0.62),new THREE.MeshBasicMaterial({color:0xffffff}),g,-0.3,1.1,0.68,false);
+  [[-1.0,0.68],[1.25,0.68],[-1.0,-0.68],[1.25,-0.68]].forEach(p=>{ const r=malha(new THREE.CylinderGeometry(0.32,0.32,0.22,16),toon(0x22252A),g,p[0],0.32,p[1]); r.rotation.x=Math.PI/2; rodasVan.push(r); });
+})();
+const texVan={};
+function pintarVan(k){
+  if(!texVan[k]){ const P=PARCEIROS[k]; texVan[k]=texCanvas(512,140,(c)=>{ c.fillStyle=P.cor; c.fillRect(0,0,512,140); c.fillStyle=P.txt; c.font="bold 64px Nunito, sans-serif"; c.textAlign='center'; c.textBaseline='middle'; c.fillText(P.nome,256,60); c.font="bold 26px Nunito, sans-serif"; c.fillText('entregas no ponto de retirada',256,116); }); }
+  ladoVan.material.map=texVan[k]; ladoVan.material.needsUpdate=true;
+}
+const VAN={estado:'ocioso',t:12,parceiro:null};
+const Z_VAN=Z_RUA+1.35, PARADA_VAN=0.4;
+function descarregarVan(){
+  const p=PDR(), k=VAN.parceiro, n=2+Math.floor(Math.random()*4)+(k==='amazon'?1:0);
+  const livre=Math.max(0,capPdr()-p.estante), ac=Math.min(n,livre), topo=vanPdr.position.clone().setY(2.6);
+  if(ac>0){ const v=ac*taxaPdr(k); p.estante+=ac; p.recebidos+=ac; p.ganho+=v; S.din+=v; S.total+=v; registrarGanho(v);
+    pop(topo,'📦 +'+ac+' '+PARCEIROS[k].nome+' · +'+fmt(v),'grande'); SOM.coletar(); atualizarHUD(true); atualizarCaixasPdr(); }
+  if(n>ac) setTimeout(()=>pop(topo.clone().setY(3.2),'Estante cheia! '+(n-ac)+' pacote'+(n-ac>1?'s':'')+' recusado'+(n-ac>1?'s':''),'ruim'),400);
+}
+function atualizarPdr(dt){
+  const p=PDR();
+  if(!p.liberado){
+    if(pdrPodeLiberar()){ p.liberado=true; salvar(); atualizarCaixasPdr(); pop(estantePdr.position.clone().setY(2.5),'📦 Ponto de Retirada liberado!','grande'); SOM.marco(); setTimeout(abrirPdr,600); }
+    return;
+  }
+  if(VAN.estado==='ocioso'){ VAN.t-=dt; if(VAN.t<=0){ const at=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]); VAN.parceiro=pega(at); pintarVan(VAN.parceiro); VAN.estado='chegando'; vanPdr.visible=true; vanPdr.position.set(-16,0,Z_VAN); } }
+  else if(VAN.estado==='chegando'||VAN.estado==='saindo'){
+    vanPdr.position.x+=7*dt; rodasVan.forEach(r=>r.rotation.y-=dt*12);
+    if(VAN.estado==='chegando'&&vanPdr.position.x>=PARADA_VAN){ vanPdr.position.x=PARADA_VAN; VAN.estado='parado'; VAN.t=2.2; descarregarVan(); }
+    if(VAN.estado==='saindo'&&vanPdr.position.x>18){ vanPdr.visible=false; VAN.estado='ocioso'; const nAt=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]).length; VAN.t=rnd(35,65)/(1+(nAt-1)*0.35); }
+  }
+  else if(VAN.estado==='parado'){ VAN.t-=dt; if(VAN.t<=0) VAN.estado='saindo'; }
+  tSpawnPdr-=dt;
+  if(tSpawnPdr<=0){ tSpawnPdr=rnd(4,9); if(p.estante-pdrEmRota>0) novoClienteRetirada(); }
+}
+// ---------- Clientes que vêm retirar ----------
+function novoClienteRetirada(){
+  const abertas=IDS.filter(i=>S.est[i].aberta);
+  const lista=Math.random()<0.45&&abertas.length?[pega(abertas)]:[];
+  const g=pessoa(); g.position.copy(ENTRADA).add(new THREE.Vector3(0,0,rnd(-0.2,0.2))); scene.add(g);
+  const cx=new THREE.Group(); cx.position.set(-0.27,0.42,0.12); g.userData.corpo.add(cx); cx.visible=false;
+  contorno(malha(geoArred(0.2,0.16,0.18,0.015),toon(0xC9935A),cx,0,0,0),0.01); bloco(0.05,0.165,0.185,toon(0xEDE3C8),cx,0,0,0);
+  g.userData.pacote=cx;
+  clientes.push({g,lista,valor:0,estado:'chegando',caminho:[FORA_PORTA.clone(),PORTA.clone()],t:0,passo:rnd(0,6),est:null,slot:-1,vel:rnd(1.9,2.3),retirada:true});
+  pdrEmRota++;
+}
+function marcarRetirada(c){
+  const p=PDR(); c.retirou=true; p.estante=Math.max(0,p.estante-1); p.retirados++; pdrEmRota=Math.max(0,pdrEmRota-1);
+  if(c.g.userData.pacote) c.g.userData.pacote.visible=true;
+  pop(c.g.position.clone().setY(2.2),'📦 Retirou a encomenda',''); atualizarCaixasPdr();
+}
+function entregarPacote(c){
+  const k=c.caixa; pagando[k]=null; baloesCobrar[k].style.display='none';
+  marcarRetirada(c);
+  c.estado='saindo'; c.caminho=rota(c.g.position,PORTA).concat([FORA_PORTA.clone(),SAIDA.clone()]);
+}
+// ---------- Selo e painel ----------
+const seloPdr=document.createElement('button'); seloPdr.type='button'; seloPdr.className='selo-pdr';
+seloPdr.addEventListener('pointerdown',e=>e.stopPropagation()); seloPdr.addEventListener('click',e=>{ e.stopPropagation(); abrirPdr(); });
+$('#selos').appendChild(seloPdr);
+function posicionarPdr(){
+  const p=PDR(), t=naTela(estantePdr.position.clone().setY(2.25));
+  seloPdr.style.left=t.x+'px'; seloPdr.style.top=t.y+'px';
+  const txt=p.liberado?'📦 '+p.estante+'/'+capPdr():'🔒 📦 Nv 50';
+  if(seloPdr.textContent!==txt) seloPdr.textContent=txt;
+}
+function renderPdr(){
+  const p=PDR(), b=$('#pdrConteudo'); b.innerHTML='';
+  const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
+  add('<p class="txt">A Adega é ponto de retirada de <b>Mercado Livre</b>, <b>Shopee</b> e <b>Amazon</b>. A cada pacote deixado aqui, a Adega recebe um valor. Os clientes vêm buscar a encomenda e às vezes aproveitam para comprar.</p>');
+  if(!p.liberado){
+    add('<p class="txt"><b>🔒 Libera quando todos os setores chegarem ao nível 50.</b></p>');
+    IDS.forEach(id=>{ const e=S.est[id], ok=e.aberta&&e.nivel>=50; add(`<div class="stat"><span>${EST[id].ic} ${EST[id].nome}</span><b>${ok?'✔ ':''}${e.aberta?'Nível '+e.nivel:'Fechado'} / 50</b></div>`); });
+    return;
+  }
+  add(`<div class="stat destaque"><span>Pacotes na estante</span><b>${p.estante} / ${capPdr()}</b></div>`);
+  add(`<div class="stat"><span>Recebidos / retirados</span><b>${p.recebidos} / ${p.retirados}</b></div>`);
+  add(`<div class="stat"><span>Ganho total com pacotes</span><b>${fmt(p.ganho)}</b></div>`);
+  add('<p class="txt" style="margin-top:10px"><b>Parceiros</b></p>');
+  Object.keys(PARCEIROS).forEach(k=>{
+    const P=PARCEIROS[k], at=p.parceiros[k];
+    const linha=document.createElement('div'); linha.className='stat';
+    linha.innerHTML=`<span>${P.nome}<br><small>${fmt(taxaPdr(k))} por pacote</small></span>`;
+    if(at){ const s=document.createElement('b'); s.textContent='✔ Ativo'; linha.appendChild(s); }
+    else { const c=custoAtivarPdr(k), bt=document.createElement('button'); bt.type='button'; bt.className='btn peq'; bt.innerHTML='Ativar · 💵 '+fmt(c); bt.disabled=S.din<c;
+      bt.addEventListener('click',()=>{ if(S.din<c) return; S.din-=c; p.parceiros[k]=true; salvar(); SOM.marco(); atualizarHUD(true); renderPdr(); }); linha.appendChild(bt); }
+    b.appendChild(linha);
+  });
+  const c=custoPdr(), bt=document.createElement('button'); bt.type='button'; bt.className='btn'; bt.style.marginTop='12px';
+  bt.innerHTML=`Ampliar estante (+4 lugares) · 💵 ${fmt(c)}`; bt.disabled=S.din<c;
+  bt.addEventListener('click',()=>{ if(S.din<c) return; S.din-=c; p.nivel++; salvar(); SOM.comprar&&SOM.comprar(); atualizarHUD(true); atualizarCaixasPdr(); renderPdr(); });
+  b.appendChild(bt);
+  add('<p class="txt" style="font-size:.85rem;color:var(--sub);margin-top:8px">Se a estante estiver cheia quando a van chegar, os pacotes que não couberem são recusados e a Adega deixa de ganhar por eles.</p>');
+}
+function abrirPdr(){ renderPdr(); $('#telaPdr').hidden=false; SOM.abrir(); }
+$('#btnPdrFechar').addEventListener('click',()=>{ $('#telaPdr').hidden=true; });
+atualizarCaixasPdr();
+
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
   'Peguei meu cupom! 🎟️','Minha adega tá bombando! 🔥','Estoque cheio, tudo certo! 📦','Alguém tem uma dica? 🤔','Valeu, pessoal! 🙏','Rumo ao nível 25! 🚀',
@@ -2452,6 +2604,7 @@ canvas.addEventListener('pointerup',e=>{
   if(!h){ fecharPainel(); return; }
   const a=h.object.userData.alvo;
   if(a==='pilha'){ if(pilhaValor>=1) coletar(); else abrirPainel('caixa'); }
+  else if(a==='pdr') abrirPdr();
   else if(a.indexOf('mesa')===0){ const i=+a.slice(4); if(!recolherMesa(i)) abrirPainel('mesas'); }
   else abrirPainel(a);
 });
@@ -2529,6 +2682,7 @@ function laco(){
     if(proxCliente<=0){ if(clientes.length<18) novoCliente(); proxCliente=intervalo()*rnd(0.75,1.25); }
     atualizarClientes(dt);
     atualizarFornecedor(dt);
+    atualizarPdr(dt);
     if(S.gerente&&!(G.estado!=='livre'&&G.g===gerente)){ tGerente+=dt; if(tGerente>2.5){ tGerente=0; if(pilhaValor>=1) coletar('gerente'); } gerente.rotation.y=Math.sin(performance.now()/900)*0.4; }
     if(S.mesas.garcom){ assentos.forEach(a=>{ if(a.estado==='sujo'){ a.t+=dt; if(a.t>2.5) recolherMesa(a.mesa,true); } }); }
     assentos.forEach(a=>{ if(a.estado==='sujo') a.nota.position.y=0.03+Math.abs(Math.sin(performance.now()/250))*0.04; });
@@ -2542,7 +2696,7 @@ function laco(){
   atualizarEdu(dt);
   atendentes.concat(edus).forEach((a,i)=>{ if(a.visible&&!(G.estado!=='livre'&&G.g===a)) a.userData.corpo.position.y=Math.abs(Math.sin(performance.now()/300+i))*0.03; });
   for(let i=confetes.length-1;i>=0;i--){const c=confetes[i];c.t+=dt;c.v.y-=6*dt;c.m.position.addScaledVector(c.v,dt);c.m.rotation.x+=c.r.x*dt;c.m.rotation.y+=c.r.y*dt;if(c.t>1.4||c.m.position.y<0.05){scene.remove(c.m);c.m.geometry.dispose();c.m.material.dispose();confetes.splice(i,1);}}
-  posicionarSelos(); posicionarCobrancas(); posicionarMesas(); posicionarReceber();
+  posicionarSelos(); posicionarCobrancas(); posicionarMesas(); posicionarReceber(); posicionarPdr();
   renderer.render(scene,cam);
 }
 function renderPainelLeve(){
