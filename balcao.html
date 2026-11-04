@@ -92,6 +92,11 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     <div id="resultado" role="status" aria-live="polite"></div>
   </section>
 
+  <section class="cartao" id="boxSeguranca">
+    <div class="cab-res"><h2>🛡️ Segurança</h2><button type="button" id="btnSeguranca">Atualizar</button></div>
+    <div id="seguranca"><p class="vazio">Digite a senha e toque em Atualizar para ver suspeitas de fraude.</p></div>
+  </section>
+
   <section class="cartao" id="boxModeracao">
     <div class="cab-res"><h2>🛡️ Moderação do Papo</h2><button type="button" id="btnModeracao">Atualizar</button></div>
     <div id="moderacao"><p class="vazio">Digite a senha e toque em Atualizar para moderar o Papo da Adega.</p></div>
@@ -204,7 +209,7 @@ async function carregarResumo(){
   }finally{ $('#btnResumo').disabled=false; }
 }
 const tempoAtras=s=>s<60?'agora mesmo':(s<3600?Math.floor(s/60)+' min atrás':Math.floor(s/3600)+' h atrás');
-const numCurto=v=>v>=1e6?(v/1e6).toFixed(1).replace('.',',')+' mi':(v>=1e3?Math.round(v/1e3)+' mil':String(Math.round(v)));
+const numCurto=v=>{ for(const [n,u] of [[1e12,' tri'],[1e9,' bi'],[1e6,' mi']]) if(v>=n) return (v/n).toFixed(1).replace('.',',').replace(/,0$/,'')+u; return v>=1e3?Math.round(v/1e3)+' mil':String(Math.round(v)); };
 async function carregarOnline(){
   const senha=$('#senha').value, box=$('#online');
   if(!senha){ box.innerHTML='<p class="vazio">Digite a senha do balcão lá em cima.</p>'; return; }
@@ -272,6 +277,36 @@ async function carregarModeracao(){
     box.appendChild(el('p','vazio',k?MSG[k]:(/mod_listar/.test(e.message)?'A moderação ainda não foi instalada no banco. Rode o supabase-papo.sql no Supabase.':'Não foi possível carregar agora. Confira a internet.')));
   }
 }
+// ---------- Segurança: suspeitas e bloqueio de cupons ----------
+async function carregarSeguranca(){
+  const senha=$('#senha').value, box=$('#seguranca');
+  if(!senha){ box.innerHTML='<p class="vazio">Digite a senha do balcão lá em cima.</p>'; return; }
+  try{
+    const r=await rpc('seg_listar',{p_senha:senha}); box.innerHTML='';
+    box.appendChild(el('p','vazio','O banco corta faturamento impossível e registra a tentativa. Cupons exigem conta com 1 dia e 2 horas de jogo.'));
+    box.appendChild(el('div','sub-tit','Jogadores com suspeita ou bloqueio'));
+    if(!r.jogadores.length) box.appendChild(el('p','vazio','Nenhuma suspeita até agora. 👍'));
+    r.jogadores.forEach(j=>{ const it=el('div','mod-item'+(j.bloqueado||j.suspeitas>=3?' alerta':'')); const q=el('div','quem',(j.bloqueado?'🔒 ':'')+j.apelido); q.appendChild(el('span','',j.suspeitas+' suspeita(s) · '+String(j.horas).replace('.',',')+' h de jogo'));
+      it.append(q,el('div','txt','Faturamento aceito: '+numCurto(Number(j.faturamento))));
+      const a=el('div','mod-acoes'); a.appendChild(j.bloqueado?botao('🔓 Desbloquear cupons','ok',()=>acaoSeg(j.apelido,false)):botao('🔒 Bloquear cupons','nao',()=>{ if(confirm('Bloquear os cupons de '+j.apelido+'?')) acaoSeg(j.apelido,true); }));
+      it.appendChild(a); box.appendChild(it); });
+    box.appendChild(el('div','sub-tit','Bloquear cupons de um apelido'));
+    const sl=el('div','mod-linha'); const ap=el('input'); ap.placeholder='Apelido';
+    sl.append(ap,botao('Bloquear','nao',()=>{ if(ap.value.trim()) acaoSeg(ap.value.trim(),true); }),botao('Desbloquear','ok',()=>{ if(ap.value.trim()) acaoSeg(ap.value.trim(),false); }));
+    box.appendChild(sl);
+    if(r.eventos.length){ box.appendChild(el('div','sub-tit','Últimas tentativas cortadas'));
+      box.appendChild(tabela([['Quando'],['Jogador'],['Tentou',1],['Aceito',1]],r.eventos.map(e=>[dataHora(e.criado_em),e.apelido,numCurto(Number(e.enviado)),numCurto(Number(e.aceito))]))); }
+  }catch(e){
+    box.innerHTML=''; const k=Object.keys(MSG).find(x=>e.message.indexOf(x)>=0);
+    box.appendChild(el('p','vazio',k?MSG[k]:(/seg_listar/.test(e.message)?'A proteção ainda não foi instalada no banco. Rode o supabase-antifraude.sql no Supabase.':'Não foi possível carregar agora. Confira a internet.')));
+  }
+}
+async function acaoSeg(apelido,bloquear){
+  try{ await rpc('seg_bloquear',{p_senha:$('#senha').value,p_apelido:apelido,p_bloquear:bloquear}); await carregarSeguranca(); }
+  catch(e){ alert(/apelido_nao_encontrado/.test(e.message)?'Apelido não encontrado.':'Não foi possível concluir agora.'); }
+}
+$('#btnSeguranca').addEventListener('click',carregarSeguranca);
+if($('#senha').value) setTimeout(carregarSeguranca,600);
 $('#btnModeracao').addEventListener('click',carregarModeracao);
 if($('#senha').value) setTimeout(carregarModeracao,700);
 $('#btnResumo').addEventListener('click',carregarResumo);

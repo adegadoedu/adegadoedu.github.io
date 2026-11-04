@@ -1525,7 +1525,7 @@ function pedirNovoApelido(){
   $('#telaInicio').hidden=true; $('#telaCadastro').hidden=false; document.body.classList.remove('jogando');
   setTimeout(()=>{ $('#cadNome').focus(); $('#cadNome').select(); },50);
 }
-const msgCadastro={apelido_em_uso:'Esse apelido já está em uso no ranking. Escolha outro.',idade_minima:'Desculpe, o jogo da Adega do Edu é exclusivo para maiores de 18 anos.',apelido_invalido:'Use um apelido de 2 a 20 letras.',senha_invalida_formato:'A senha precisa ter de 4 a 30 caracteres.'};
+const msgCadastro={muitos_cadastros:'Muitos cadastros foram feitos desta internet hoje. Tente de novo amanhã.',apelido_em_uso:'Esse apelido já está em uso no ranking. Escolha outro.',idade_minima:'Desculpe, o jogo da Adega do Edu é exclusivo para maiores de 18 anos.',apelido_invalido:'Use um apelido de 2 a 20 letras.',senha_invalida_formato:'A senha precisa ter de 4 a 30 caracteres.'};
 $('#btnCadastrar').addEventListener('click',async()=>{
   const btn=$('#btnCadastrar'); if(btn.disabled) return;
   const nome=$('#cadNome').value.replace(/\s+/g,' ').trim(), idade=parseInt($('#cadIdade').value,10), senha=$('#cadSenha').value, err=$('#cadErro');
@@ -1715,7 +1715,7 @@ function abrirCupom(){
   if(!cp.online){ $('#cpErro').textContent=rankingAtivo()?'Para gerar cupons, o seu cadastro precisa estar conectado à internet. Tente de novo em instantes.':'Os cupons ainda não foram ligados pela Adega do Edu.'; garantirRegistro(); return; }
   carregarCupons();
 }
-const msgCupom={saldo_insuficiente:'Seu faturamento registrado no ranking ainda não chega a esse valor. Jogue mais um pouco e tente de novo.',limite_mensal:'Você já chegou ao limite de R$ 10,00 em cupons este mês.',jogador_falido:'Essa adega faliu e não pode gerar cupons.',valor_invalido:'Escolha um valor entre R$ 1,00 e R$ 10,00.'};
+const msgCupom={conta_nova:'Contas novas precisam esperar 1 dia para gerar cupons. Continue jogando!',pouco_tempo_jogo:'Para gerar cupons, é preciso ter pelo menos 2 horas de jogo registradas. Continue jogando!',cupons_bloqueados:'Os cupons desta conta estão bloqueados pela Adega do Edu. Fale com a loja.',saldo_insuficiente:'Seu faturamento registrado no ranking ainda não chega a esse valor. Jogue mais um pouco e tente de novo.',limite_mensal:'Você já chegou ao limite de R$ 10,00 em cupons este mês.',jogador_falido:'Essa adega faliu e não pode gerar cupons.',valor_invalido:'Escolha um valor entre R$ 1,00 e R$ 10,00.'};
 $('#dinheiro').addEventListener('click',()=>{ SOM.abrir(); abrirCupom(); });
 $('#dinheiro').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abrirCupom(); } });
 $('#cpMenos').addEventListener('click',()=>{ cp.valor--; renderCupom(); });
@@ -1744,7 +1744,7 @@ $('#cpGerar').addEventListener('click',async()=>{
 });
 
 // ---------- Cupom de conclusão (todas as tarefas) ----------
-const msgConclusao={conclusao_incompleta:'O seu faturamento registrado ainda não chegou a 150 mil. Jogue mais um pouco e tente de novo.',conclusao_ja_pega:'Você já pegou o seu cupom de conclusão. Ele é único, um por jogador.',limite_mensal:'Você já usou o limite de R$ 10,00 em cupons este mês. Volte no mês que vem!',jogador_falido:'Essa adega faliu e não pode gerar cupons.'};
+const msgConclusao={conta_nova:'Contas novas precisam esperar 1 dia para gerar cupons. Continue jogando!',pouco_tempo_jogo:'Para gerar cupons, é preciso ter pelo menos 2 horas de jogo registradas. Continue jogando!',cupons_bloqueados:'Os cupons desta conta estão bloqueados pela Adega do Edu. Fale com a loja.',conclusao_incompleta:'O seu faturamento registrado ainda não chegou a 150 mil. Jogue mais um pouco e tente de novo.',conclusao_ja_pega:'Você já pegou o seu cupom de conclusão. Ele é único, um por jogador.',limite_mensal:'Você já usou o limite de R$ 10,00 em cupons este mês. Volte no mês que vem!',jogador_falido:'Essa adega faliu e não pode gerar cupons.'};
 $('#btnConclusao').addEventListener('click',async()=>{
   const btn=$('#btnConclusao'), err=$('#conclErro'); if(btn.disabled) return;
   if(!rankingAtivo()||!S.perfil||!S.perfil.id){ err.textContent='Para pegar o cupom, o jogo precisa estar conectado à internet com o seu cadastro.'; return; }
