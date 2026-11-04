@@ -57,6 +57,22 @@ body:not(.jogando) .hud{display:none}
 .selo.pode{background:#C9F7D8}
 .btn-venda{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#1F4D3A;color:#FFC93C;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno);animation:pulo 1.6s ease-in-out infinite}
 body:not(.jogando) .btn-venda{display:none}
+.btn-missoes{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#FFC93C;color:#2A1A12;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno)}
+body:not(.jogando) .btn-missoes{display:none}
+.badge-missoes{position:absolute;top:-10px;right:-8px;min-width:24px;height:24px;border-radius:12px;background:#E8433A;color:#fff;border:3px solid #2A1A12;font-size:.8rem;display:flex;align-items:center;justify-content:center;padding:0 4px;animation:pulo 1s ease-in-out infinite}
+.badge-missoes[hidden]{display:none}
+.toast-missao{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 120px);transform:translateX(-50%);z-index:8;background:#3CB371;color:#fff;border:4px solid #2A1A12;border-radius:14px;box-shadow:0 5px 0 #2A1A12;padding:10px 14px;font:900 .95rem 'Nunito',sans-serif;width:min(90vw,420px);text-align:center}
+.toast-missao[hidden]{display:none}
+.missao,.bau{display:flex;gap:10px;align-items:center;border:3px solid var(--contorno);border-radius:14px;padding:10px;margin:8px 0;background:var(--painel2)}
+.missao.pega{opacity:.65}
+.bau{background:color-mix(in srgb,#FFC93C 25%,var(--painel2))}
+.missao-ic,.bau-ic{font-size:1.7rem;flex:none}
+.missao-corpo{flex:1;min-width:0}
+.missao-txt{font-weight:900;font-size:.95rem}
+.missao-barra{height:9px;background:var(--trilho);border-radius:5px;margin:5px 0;overflow:hidden;border:2px solid var(--contorno)}
+.missao-barra i{display:block;height:100%;background:var(--verde)}
+.missao-info{font-weight:800;font-size:.8rem;color:var(--sub)}
+.missao .btn.missao-btn,.bau .btn.missao-btn{flex:0 0 auto;width:auto;min-width:78px;margin:0;padding:9px 12px;font-size:1rem}
 .proposta{border:3px solid var(--contorno);border-radius:14px;padding:10px 12px;margin:10px 0;background:var(--painel2)}
 .prop-topo{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .prop-topo span{color:var(--sub);font-weight:800;font-size:.85rem}
@@ -317,6 +333,15 @@ body:not(.jogando) .alerta{display:none}
 <button class="btn-papo" id="btnPapo" type="button" aria-label="Papo da Adega">💬 Papo</button>
 
 <button class="btn-venda" id="btnVenda" type="button" hidden>💼 Vender a Adega</button>
+<button class="btn-missoes" id="btnMissoes" type="button" hidden>📅 Missões<span class="badge-missoes" id="missoesBadge" hidden>0</span></button>
+<div class="toast-missao" id="toastMissao" hidden role="status"></div>
+
+<section class="tela" id="telaMissoes" hidden>
+  <div class="caixa">
+    <div class="papo-topo"><h2 class="titulo" style="font-size:1.7rem">📅 Missões do dia</h2><button class="pilula" id="btnMissoesFechar" type="button" aria-label="Fechar">✕</button></div>
+    <div id="missoesConteudo"></div>
+  </div>
+</section>
 
 <section class="tela" id="telaVenda" hidden>
   <div class="caixa">
@@ -1208,7 +1233,7 @@ function cobrar(c,modo){
   const k=c.caixa; pagando[k]=null; baloesCobrar[k].style.display='none';
   if(c.retirada&&!c.retirou) marcarRetirada(c);
   const topo=c.g.position.clone().setY(2.0);
-  S.total+=c.valor; registrarGanho(c.valor);
+  S.total+=c.valor; registrarGanho(c.valor); missaoEvento('cobrar',1); if(modo==='manual') missaoEvento('cobrarManual',1);
   if(modo==='manual'){
     const gorjeta=Math.round(c.valor*0.3*Math.max(0,1-c.t/JANELA_GORJETA));
     S.din+=c.valor+gorjeta; S.cobrados++; S.total+=gorjeta;
@@ -1282,7 +1307,7 @@ function atualizarClientes(dt){
         if(c.t<=0){
           c.g.userData.corpo.rotation.x=0;
           vagasEst[c.est][c.slot]=null; c.lista.shift();
-          if(S.est[c.est].estoque>0){ S.est[c.est].estoque--; atualizarProdutos(c.est);
+          if(S.est[c.est].estoque>0){ S.est[c.est].estoque--; atualizarProdutos(c.est); missaoEvento('vender',1,c.est);
             if(c.est==='carvao'){ const g4=Math.random()<0.45; c.valor+=valorEst('carvao')*(g4?FATOR_4KG:1); pop(c.g.position.clone().setY(1.7),'+🔥 '+(g4?'4 kg':'2 kg'),''); }
             else { c.valor+=valorEst(c.est); pop(c.g.position.clone().setY(1.7),'+'+EST[c.est].ic,''); }
             c.g.userData.sacola.visible=true; }
@@ -1302,7 +1327,7 @@ function atualizarClientes(dt){
         const a=c.assento; c.t-=dt; c.g.userData.corpo.position.y=Math.abs(Math.sin(c.t*2.5))*0.02;
         if(Math.random()<dt*0.5) pop(c.g.position.clone().setY(1.6),pega(['😋','🥤','🍿','😄']),'');
         if(c.t<=0){
-          a.estado='sujo'; a.valor=valorMesa(); a.nota.visible=true; a.cliente=null; a.t=0; c.assento=null;
+          missaoEvento('mesa',1); a.estado='sujo'; a.valor=valorMesa(); a.nota.visible=true; a.cliente=null; a.t=0; c.assento=null;
           c.g.position.y=0; c.g.userData.corpo.position.y=0; c.g.userData.pE.rotation.x=c.g.userData.pD.rotation.x=0;
           c.estado='saindo'; c.caminho=[a.aprox.clone()].concat(rota(a.aprox,PORTA)).concat([FORA_PORTA.clone(),SAIDA.clone()]);
         }
@@ -1354,7 +1379,7 @@ function pedir(id,auto){
   const q=qtdPossivel(id), c=q*custoUnit(id);
   if(q<=0) return false;
   if(auto&&q<Math.min(5,faltando(id))) return false;
-  S.din-=c; S.est[id].pedido+=q; S.pedidos=(S.pedidos||0)+1;
+  S.din-=c; S.est[id].pedido+=q; S.pedidos=(S.pedidos||0)+1; missaoEvento('repor',1);
   if(FORN.fila.indexOf(id)<0&&G.lista.indexOf(id)<0) FORN.fila.push(id);
   pop(objEst[id].g.position.clone().setY(2.7),(auto?'Pedido automático 🚚':'Pedido feito 🚚'),'');
   if(!auto) SOM.comprar();
@@ -2049,7 +2074,7 @@ function encerrarEntrega(sucesso){
   const ganhoMoedas=ENT.moedas*ENT.valorMoeda, ganho=(sucesso?ENT.pedido.valor:0)+ganhoMoedas;
   if(ganho>0){ S.din+=ganho; S.total+=ganho; registrarGanho(ganho); }
   S.entregas=S.entregas||{feitas:0,perdidas:0};
-  if(sucesso) S.entregas.feitas++; else S.entregas.perdidas++;
+  if(sucesso){ S.entregas.feitas++; missaoEvento('entrega',1); } else S.entregas.perdidas++;
   salvar();
   $('#fimTitulo').textContent=sucesso?'Entrega feita!':'Pedido perdido!';
   $('#fimTexto').textContent=sucesso?'O cliente recebeu o pedido e pagou com a taxa de entrega.':'A moto bateu e os produtos do pedido se perderam. As moedas que você pegou ficam com você.';
@@ -2420,6 +2445,88 @@ async function abrirRkVendas(){
   }catch(e){ info.textContent='Não foi possível carregar as vendas agora. Confira a internet.'; }
 }
 
+// ================= Missões diárias =================
+const NOMES_VENDA={refri:'refrigerantes',agua:'águas e sucos',salgadinho:'salgadinhos',gelo:'sacos de gelo',carvao:'sacos de carvão',mercearia:'itens da mercearia'};
+const POOL_MISSOES=[
+  {tipo:'cobrar',ic:'🧾',txt:n=>`Atenda ${n} clientes no caixa`,n:()=>pega([30,50,80])},
+  {tipo:'cobrarManual',ic:'💳',req:()=>S.caixas>(S.operadores||0),txt:n=>`Cobre ${n} clientes tocando no balão`,n:()=>pega([10,20,30])},
+  {tipo:'vender',ic:'🛒',setor:true,txt:(n,id)=>`Venda ${n} ${NOMES_VENDA[id]||'produtos'}`,n:()=>pega([25,40,60])},
+  {tipo:'melhorar',ic:'⬆️',txt:n=>`Faça ${n} melhorias nos setores`,n:()=>pega([5,10,15])},
+  {tipo:'repor',ic:'🚚',txt:n=>`Peça reposição ao fornecedor ${n} vezes`,n:()=>pega([3,5])},
+  {tipo:'faturar',ic:'💵',txt:n=>`Fature ${fmt(n)} hoje`,n:()=>Math.max(5000,Math.round(rendaRefMissao()*20/1000)*1000)},
+  {tipo:'mesa',ic:'🍽️',req:()=>S.mesas&&S.mesas.n>0,txt:n=>`Sirva ${n} clientes nas mesas`,n:()=>pega([10,20])},
+  {tipo:'entrega',ic:'🛵',req:()=>entregasLiberadas(),txt:n=>`Faça ${n} entregas de moto`,n:()=>pega([2,3,5])}
+];
+const diaSP=t=>new Date(t).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+function rendaRefMissao(){ const ab=IDS.filter(i=>S.est[i].aberta); const m=ab.length?ab.reduce((a,i)=>a+valorEst(i),0)/ab.length:4; return Math.max(taxaPorMin(),m*10); }
+function missoesLiberadas(){ return !!(S&&S.perfil&&S.tarefa>=3&&!S.falido); }
+function garantirMissoes(){
+  if(!missoesLiberadas()) return null;
+  const hoje=diaSP(Date.now()); let M=S.missoes;
+  if(!M||M.dia!==hoje){
+    const ontem=diaSP(Date.now()-864e5);
+    const seq=M&&M.bauPego&&M.dia===ontem?(M.seq||0):0;
+    const disp=POOL_MISSOES.filter(p=>!p.req||p.req()).sort(()=>Math.random()-0.5).slice(0,3);
+    const premio=Math.max(500,Math.round(rendaRefMissao()*5));
+    const lista=disp.map(p=>({tipo:p.tipo,setor:p.setor?pega(IDS.filter(i=>S.est[i].aberta)):null,n:p.n(),prog:0,pega:false,premio}));
+    S.missoes=M={dia:hoje,lista,bauPego:false,seq};
+    salvar();
+  }
+  return M;
+}
+let tToastMissao=0;
+function toastMissao(t){ const a=$('#toastMissao'); a.textContent=t; a.hidden=false; clearTimeout(tToastMissao); tToastMissao=setTimeout(()=>{a.hidden=true;},2600); }
+function missaoEvento(tipo,qtd,setor){
+  const M=S&&S.missoes; if(!M||!M.lista) return;
+  let mud=false;
+  M.lista.forEach(m=>{ if(m.tipo===tipo&&(!m.setor||m.setor===setor)&&m.prog<m.n){ m.prog=Math.min(m.n,m.prog+qtd); mud=true; if(m.prog>=m.n){ SOM.marco(); toastMissao('✅ Missão concluída! Pegue o prêmio em 📅 Missões'); } } });
+  if(mud){ atualizarBtnMissoes(); if(!$('#telaMissoes').hidden) renderMissoes(); }
+}
+const premioBau=M=>Math.round(rendaRefMissao()*15*(1+0.1*Math.min(7,(M.seq||0)+1)));
+function atualizarBtnMissoes(){
+  const b=$('#btnMissoes'); if(!b) return;
+  const lib=missoesLiberadas(); b.hidden=!lib; if(!lib) return;
+  const M=S.missoes; let n=0;
+  if(M&&M.lista){ n=M.lista.filter(m=>m.prog>=m.n&&!m.pega).length; if(!M.bauPego&&M.lista.every(m=>m.pega)) n++; }
+  const bd=$('#missoesBadge'); bd.textContent=n; bd.hidden=!n;
+}
+function textoMissao(m){ const p=POOL_MISSOES.find(x=>x.tipo===m.tipo); return p?p.txt(m.n,m.setor):''; }
+function renderMissoes(){
+  const M=garantirMissoes(), b=$('#missoesConteudo'); b.innerHTML='';
+  if(!M){ b.innerHTML='<p class="txt">As missões diárias aparecem depois das 3 primeiras tarefas.</p>'; return; }
+  const meia=new Date(); const agora=Date.now();
+  const fimDia=new Date(diaSP(agora)+'T23:59:59-03:00').getTime(); const falta=Math.max(0,fimDia-agora);
+  const hh=Math.floor(falta/3600000), mm=Math.floor(falta%3600000/60000);
+  const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
+  add(`<p class="txt" style="color:var(--sub);font-size:.9rem">Novas missões em ${hh} h ${mm} min.</p>`);
+  M.lista.forEach((m,i)=>{
+    const p=POOL_MISSOES.find(x=>x.tipo===m.tipo)||{ic:'⭐'}, feito=m.prog>=m.n, pct=Math.round(100*m.prog/m.n);
+    const d=document.createElement('div'); d.className='missao'+(m.pega?' pega':'');
+    const prog=m.tipo==='faturar'?fmt(m.prog)+' / '+fmt(m.n):m.prog+' / '+m.n;
+    d.innerHTML=`<div class="missao-ic">${p.ic}</div><div class="missao-corpo"><div class="missao-txt">${textoMissao(m)}</div><div class="missao-barra"><i style="width:${pct}%"></i></div><div class="missao-info">${prog} · prêmio 💵 ${fmt(m.premio)}</div></div>`;
+    const bt=document.createElement('button'); bt.type='button'; bt.className='btn peq missao-btn';
+    if(m.pega){ bt.textContent='✔'; bt.disabled=true; }
+    else if(feito){ bt.textContent='Pegar'; bt.addEventListener('click',()=>{ m.pega=true; S.din+=m.premio; SOM.coletar(); salvar(); atualizarHUD(true); atualizarBtnMissoes(); renderMissoes(); }); }
+    else { bt.textContent=pct+'%'; bt.disabled=true; }
+    d.appendChild(bt); b.appendChild(d);
+  });
+  const todas=M.lista.every(m=>m.pega), pb=premioBau(M);
+  const bau=document.createElement('div'); bau.className='bau'+(M.bauPego?' aberto':'');
+  bau.innerHTML=`<div class="bau-ic">${M.bauPego?'🎉':'🎁'}</div><div class="missao-corpo"><div class="missao-txt">Baú do dia</div><div class="missao-info">${M.bauPego?'Aberto! Volte amanhã para manter a sequência.':'Complete as 3 missões para abrir · 💵 '+fmt(pb)}</div><div class="missao-info">🔥 Sequência: ${M.seq||0} ${M.seq===1?'dia':'dias'} seguidos · bônus +${10*Math.min(7,(M.seq||0)+1)}%</div></div>`;
+  const bb=document.createElement('button'); bb.type='button'; bb.className='btn amarelo peq missao-btn';
+  if(M.bauPego){ bb.textContent='✔'; bb.disabled=true; }
+  else if(todas){ bb.textContent='Abrir'; bb.addEventListener('click',()=>{ M.bauPego=true; M.seq=(M.seq||0)+1; S.din+=pb; SOM.marco(); salvar(); atualizarHUD(true); atualizarBtnMissoes(); renderMissoes(); }); }
+  else { bb.textContent='🔒'; bb.disabled=true; }
+  bau.appendChild(bb); b.appendChild(bau);
+  add('<p class="txt" style="font-size:.82rem;color:var(--sub)">Os prêmios das missões entram no seu caixa. Complete o baú todos os dias para aumentar a sequência (até +70%).</p>');
+}
+function abrirMissoes(){ garantirMissoes(); renderMissoes(); $('#telaMissoes').hidden=false; SOM.abrir(); }
+$('#btnMissoes').addEventListener('click',abrirMissoes);
+$('#btnMissoesFechar').addEventListener('click',()=>{ $('#telaMissoes').hidden=true; });
+setInterval(()=>{ if(S&&document.body.classList.contains('jogando')){ garantirMissoes(); atualizarBtnMissoes(); } },20000);
+
+setTimeout(()=>{ if(S){ garantirMissoes(); atualizarBtnMissoes(); } },2500);
+
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
   'Peguei meu cupom! 🎟️','Minha adega tá bombando! 🔥','Estoque cheio, tudo certo! 📦','Alguém tem uma dica? 🤔','Valeu, pessoal! 🙏','Rumo ao nível 25! 🚀',
@@ -2550,7 +2657,7 @@ $('#btnVoltarJogar').addEventListener('click',()=>{
 
 // ================= Ganhos =================
 const ganhos=[];
-function registrarGanho(v){ganhos.push([performance.now(),v]);}
+function registrarGanho(v){ganhos.push([performance.now(),v]); missaoEvento('faturar',v);}
 function taxaPorMin(){
   const agora=performance.now(); while(ganhos.length&&agora-ganhos[0][0]>60000) ganhos.shift();
   if(!ganhos.length) return 0;
@@ -2590,6 +2697,7 @@ function voarNotas(p,n){
 function atualizarHUD(pulo){
   const be=document.getElementById('btnEntregas'); if(be) be.hidden=!entregasLiberadas();
   const bv=document.getElementById('btnVenda'); if(bv) bv.hidden=!vendaLiberada();
+  atualizarBtnMissoes();
   $('#valDin').textContent=fmt(S.din);
   if(pulo){const e=$('#dinheiro');e.classList.remove('pulo');void e.offsetWidth;e.classList.add('pulo');}
   renderTarefa(); renderSelos();
@@ -2730,7 +2838,7 @@ function acao(k,silencioso){
   if(IDS.includes(k)){
     const e=S.est[k];
     if(!e.aberta){ const c=EST[k].abrir*multPrest(); if(S.din<c) return; S.din-=c; e.aberta=true; e.estoque=cap(k); e.pedido=0; atualizarEstacoes(); atualizarProdutos(k); festa(objEst[k].g.position); }
-    else { const c=custoEst(k); if(S.din<c) return; S.din-=c; e.nivel++; atualizarProdutos(k); if(MARCOS.includes(e.nivel)){ SOM.marco(); festa(objEst[k].g.position); pop(objEst[k].g.position.clone().setY(3),'Valor x2!','grande'); } }
+    else { const c=custoEst(k); if(S.din<c) return; S.din-=c; e.nivel++; atualizarProdutos(k); missaoEvento('melhorar',1); if(MARCOS.includes(e.nivel)){ SOM.marco(); festa(objEst[k].g.position); pop(objEst[k].g.position.clone().setY(3),'Valor x2!','grande'); } }
   } else if(k==='caixa'){ const c=custoCaixaV(); if(S.din<c) return; S.din-=c; S.caixaV++; }
   else if(k==='letreiro'){ const c=custoLetreiro(); if(S.din<c) return; S.din-=c; S.letreiro++; }
   else if(k==='mesas'){ const c=custoMesaNivel(); if(S.din<c) return; S.din-=c; S.mesas.nivel++; if(MARCOS.includes(S.mesas.nivel)){ SOM.marco(); pop(new THREE.Vector3(-3.15,2,Z_CORREDOR),'Valor x2!','grande'); } }
