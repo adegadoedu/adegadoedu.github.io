@@ -2464,7 +2464,9 @@ function agoraSP(){
 }
 const mdSP=t=>t.m*100+t.d;
 const entreMD=(t,a,b)=>a<=b?(mdSP(t)>=a&&mdSP(t)<=b):(mdSP(t)>=a||mdSP(t)<=b);
-function domingoPais(y){ const wd=new Date(Date.UTC(y,7,1)).getUTCDay(); return 1+((7-wd)%7)+7; }
+function segundoDomingo(y,mes){ const wd=new Date(Date.UTC(y,mes,1)).getUTCDay(); return 1+((7-wd)%7)+7; }
+function domingoPais(y){ return segundoDomingo(y,7); }
+function domingoMaes(y){ return segundoDomingo(y,4); }
 const EVENTOS=[
   {id:'aniversario',nome:'Aniversário da Adega',ic:'🎂',bonus:0.25,ate:'09/12',dec:['baloes','luzes','faixa'],faixa:()=>(agoraSP().y-2023)+' ANOS DE ADEGA DO EDU!',cor:['#E8433A','#FFFFFF'],bal:[0xE8433A,0xFFC93C,0x2F8FD8,0x3CB371],ativo:t=>!!ANIV_ADEGA&&entreMD(t,ANIV_ADEGA[0],ANIV_ADEGA[1])},
   {id:'natal',nome:'Natal na Adega',ic:'🎄',bonus:0.20,ate:'25/12',dec:['arvore','luzes','faixa'],faixa:'FELIZ NATAL!',cor:['#C2362B','#FFFFFF'],ativo:t=>entreMD(t,1215,1225)},
@@ -2472,6 +2474,7 @@ const EVENTOS=[
   {id:'black',nome:'Black Friday',ic:'🛍️',bonus:0.10,fornecedor:0.7,ate:'30/11',dec:['faixa'],faixa:'BLACK FRIDAY · FORNECEDOR -30%',cor:['#111111','#FFC93C'],ativo:t=>entreMD(t,1120,1130)},
   {id:'carnaval',nome:'Carnaval na Adega',ic:'🎉',bonus:0.15,ate:'Quarta de Cinzas',dec:['confete','bandeirinhas','faixa'],faixa:'CARNAVAL NA ADEGA!',cor:['#9B5DE5','#FFFFFF'],ativo:t=>{ const c=CARNAVAL[t.y]; return !!c&&entreMD(t,c[0],c[1]); }},
   {id:'junina',nome:'Arraiá da Adega',ic:'🌽',bonus:0.10,ate:'30/06',dec:['bandeirinhas','faixa'],faixa:'ARRAIÁ DA ADEGA!',cor:['#C2862B','#FFFFFF'],ativo:t=>t.m===6},
+  {id:'maes',nome:'Semana das Mães',ic:'💐',bonus:0.15,ate:'Dia das Mães',dec:['baloes','faixa'],faixa:'FELIZ DIA DAS MÃES!',cor:['#D63384','#FFFFFF'],bal:[0xF06AA7,0xC5A3E8,0xFFFFFF,0xF8BBD0],ativo:t=>{ const s=domingoMaes(t.y); return t.m===5&&t.d>=s-6&&t.d<=s; }},
   {id:'pais',nome:'Semana dos Pais',ic:'👔',bonus:0.10,ate:'Dia dos Pais',dec:['baloes','faixa'],faixa:'FELIZ DIA DOS PAIS!',cor:['#1E2E55','#FFFFFF'],bal:[0x2F8FD8,0x1E2E55,0xF5F5F5,0x78B8E8],ativo:t=>{ const s=domingoPais(t.y); return t.m===8&&t.d>=s-6&&t.d<=s; }},
   {id:'sextou',nome:'Sextou na Adega',ic:'🍻',bonus:0.10,ate:'23h',dec:['luzes','faixa'],faixa:'SEXTOU NA ADEGA!',cor:['#1F4D3A','#FFC93C'],ativo:t=>t.wd==='Fri'&&t.h>=18&&t.h<23}
 ];
