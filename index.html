@@ -70,6 +70,8 @@ body:not(.jogando) .btn-missoes{display:none}
 .badge-missoes[hidden]{display:none}
 .toast-missao{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 120px);transform:translateX(-50%);z-index:8;background:#3CB371;color:#fff;border:4px solid #2A1A12;border-radius:14px;box-shadow:0 5px 0 #2A1A12;padding:10px 14px;font:900 .95rem 'Nunito',sans-serif;width:min(90vw,420px);text-align:center}
 .toast-missao[hidden]{display:none}
+.ev-banner{background:linear-gradient(90deg,#FFC93C,#FF8A3D);color:#2A1A12;border:3px solid var(--contorno);border-radius:12px;padding:8px 12px;font-weight:800;margin:4px 0 8px}
+.ev-tag{display:inline-block;background:#E8433A;color:#fff;border-radius:8px;padding:1px 7px;font-size:.75rem;margin-right:2px}
 .missao,.bau{display:flex;gap:10px;align-items:center;border:3px solid var(--contorno);border-radius:14px;padding:10px;margin:8px 0;background:var(--painel2)}
 .missao.pega{opacity:.65}
 .bau{background:color-mix(in srgb,#FFC93C 25%,var(--painel2))}
@@ -341,7 +343,7 @@ body:not(.jogando) .alerta{display:none}
 <button class="btn-papo" id="btnPapo" type="button" aria-label="Papo da Adega">💬 Papo</button>
 
 <button class="btn-venda" id="btnVenda" type="button" hidden>💼 Vender a Adega</button>
-<button class="btn-missoes" id="btnMissoes" type="button" hidden>📅 Missões<span class="badge-missoes" id="missoesBadge" hidden>0</span></button>
+<button class="btn-missoes" id="btnMissoes" type="button" hidden><span id="missoesTxt">📅 Missões</span><span class="badge-missoes" id="missoesBadge" hidden>0</span></button>
 <div class="toast-missao" id="toastMissao" hidden role="status"></div>
 
 <section class="tela" id="telaMissoes" hidden>
@@ -585,7 +587,7 @@ function salvar(){if(trocandoConta)return;S.salvo=Date.now();if(typeof taxaPorMi
 
 const multPrest=()=>1+0.25*((S&&S.prest)||0);
 function marcosAte(n){return MARCOS.filter(m=>n>=m).length;}
-function valorEst(id,n){n=n||S.est[id].nivel;return EST[id].valor*n*Math.pow(2,marcosAte(n))*multPrest()*multNivel();}
+function valorEst(id,n){n=n||S.est[id].nivel;return EST[id].valor*n*Math.pow(2,marcosAte(n))*multPrest()*multNivel()*multEvento();}
 function tempoEst(id,n){n=n||S.est[id].nivel;return EST[id].tempo/(1+0.35*marcosAte(n));}
 function custoEst(id){const n=S.est[id].nivel;return Math.ceil(EST[id].custo*Math.pow(1.2,n-1));}
 function custoCaixaV(){return Math.ceil(2500*Math.pow(1.6,S.caixaV-1));}
@@ -1353,7 +1355,7 @@ function atualizarClientes(dt){
 
 // ================= Estoque e fornecedor =================
 function cap(id,n){n=n||S.est[id].nivel;return 20+2*(n-1);}
-function custoUnit(id){return Math.max(1,Math.round(valorEst(id)*0.4));}
+function custoUnit(id){return Math.max(1,Math.round(valorEst(id)/multEvento()*0.4*fatorFornecedor()));}
 function faltando(id){const e=S.est[id];return Math.max(0,cap(id)-e.estoque-e.pedido);}
 function custoPedido(id){return faltando(id)*custoUnit(id);}
 const autoRepor=()=>false; // reposição sempre manual: o jogador faz os pedidos
@@ -2453,6 +2455,91 @@ async function abrirRkVendas(){
   }catch(e){ info.textContent='Não foi possível carregar as vendas agora. Confira a internet.'; }
 }
 
+// ================= Eventos temáticos =================
+const ANIV_ADEGA=null; // aniversário da Adega: [MMDD início, MMDD fim] — ex.: [315,321]
+const CARNAVAL={2027:[206,210],2028:[226,301],2029:[210,214],2030:[302,306],2031:[222,226],2032:[207,211]};
+function agoraSP(){
+  const o={}; new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',hour12:false,weekday:'short'}).formatToParts(new Date()).forEach(x=>o[x.type]=x.value);
+  return {y:+o.year,m:+o.month,d:+o.day,h:(+o.hour)%24,wd:o.weekday};
+}
+const mdSP=t=>t.m*100+t.d;
+const entreMD=(t,a,b)=>a<=b?(mdSP(t)>=a&&mdSP(t)<=b):(mdSP(t)>=a||mdSP(t)<=b);
+function domingoPais(y){ const wd=new Date(Date.UTC(y,7,1)).getUTCDay(); return 1+((7-wd)%7)+7; }
+const EVENTOS=[
+  {id:'aniversario',nome:'Aniversário da Adega',ic:'🎂',bonus:0.25,ate:'',dec:['baloes','luzes','faixa'],faixa:'PARABÉNS, ADEGA DO EDU!',cor:['#E8433A','#FFFFFF'],bal:[0xE8433A,0xFFC93C,0x2F8FD8,0x3CB371],ativo:t=>!!ANIV_ADEGA&&entreMD(t,ANIV_ADEGA[0],ANIV_ADEGA[1])},
+  {id:'natal',nome:'Natal na Adega',ic:'🎄',bonus:0.20,ate:'25/12',dec:['arvore','luzes','faixa'],faixa:'FELIZ NATAL!',cor:['#C2362B','#FFFFFF'],ativo:t=>entreMD(t,1215,1225)},
+  {id:'reveillon',nome:'Réveillon na Adega',ic:'🥂',bonus:0.15,ate:'1º/01',dec:['baloes','luzes','faixa'],faixa:'FELIZ ANO NOVO!',cor:['#1A1A1A','#FFD54F'],bal:[0xFFD54F,0xE0E0E0,0xFFC93C,0xF5F5F5],ativo:t=>entreMD(t,1226,101)},
+  {id:'black',nome:'Black Friday',ic:'🛍️',bonus:0.10,fornecedor:0.7,ate:'30/11',dec:['faixa'],faixa:'BLACK FRIDAY · FORNECEDOR -30%',cor:['#111111','#FFC93C'],ativo:t=>entreMD(t,1120,1130)},
+  {id:'carnaval',nome:'Carnaval na Adega',ic:'🎉',bonus:0.15,ate:'Quarta de Cinzas',dec:['confete','bandeirinhas','faixa'],faixa:'CARNAVAL NA ADEGA!',cor:['#9B5DE5','#FFFFFF'],ativo:t=>{ const c=CARNAVAL[t.y]; return !!c&&entreMD(t,c[0],c[1]); }},
+  {id:'junina',nome:'Arraiá da Adega',ic:'🌽',bonus:0.10,ate:'30/06',dec:['bandeirinhas','faixa'],faixa:'ARRAIÁ DA ADEGA!',cor:['#C2862B','#FFFFFF'],ativo:t=>t.m===6},
+  {id:'pais',nome:'Semana dos Pais',ic:'👔',bonus:0.10,ate:'Dia dos Pais',dec:['baloes','faixa'],faixa:'FELIZ DIA DOS PAIS!',cor:['#1E2E55','#FFFFFF'],bal:[0x2F8FD8,0x1E2E55,0xF5F5F5,0x78B8E8],ativo:t=>{ const s=domingoPais(t.y); return t.m===8&&t.d>=s-6&&t.d<=s; }},
+  {id:'sextou',nome:'Sextou na Adega',ic:'🍻',bonus:0.10,ate:'23h',dec:['luzes','faixa'],faixa:'SEXTOU NA ADEGA!',cor:['#1F4D3A','#FFC93C'],ativo:t=>t.wd==='Fri'&&t.h>=18&&t.h<23}
+];
+let evCache=null, evCacheT=0;
+function eventoAtual(){ const n=Date.now(); if(n-evCacheT>30000){ evCacheT=n; const t=agoraSP(); evCache=EVENTOS.find(e=>e.ativo(t))||null; } return evCache; }
+function multEvento(){ const e=eventoAtual(); return 1+(e?e.bonus:0); }
+function fatorFornecedor(){ const e=eventoAtual(); return e&&e.fornecedor?e.fornecedor:1; }
+// ---------- Decoração na loja ----------
+const decorEvento=new THREE.Group(); scene.add(decorEvento); let decorId='';
+function limparDecor(){ while(decorEvento.children.length) decorEvento.remove(decorEvento.children[0]); }
+function faixaDecor(ev){
+  const tx=texCanvas(1024,150,(c)=>{ c.fillStyle=ev.cor[0]; c.fillRect(0,0,1024,150); c.strokeStyle=ev.cor[1]; c.lineWidth=8; c.strokeRect(10,10,1004,130); c.fillStyle=ev.cor[1]; c.font="bold 72px Nunito, sans-serif"; c.textAlign='center'; c.textBaseline='middle'; c.fillText(ev.ic+' '+ev.faixa,512,80); });
+  const p=malha(new THREE.PlaneGeometry(3.3,0.48),new THREE.MeshBasicMaterial({map:tx}),decorEvento,CX.x,0.62,CX.z+0.47,false);
+}
+function bandeirinhasDecor(){
+  const cores=[0xE8433A,0xFFC93C,0x3CB371,0x2F8FD8,0x9B5DE5,0xFF7A1A];
+  const tri=new THREE.Shape(); tri.moveTo(-0.1,0); tri.lineTo(0.1,0); tri.lineTo(0,-0.24); tri.closePath(); const g=new THREE.ShapeGeometry(tri);
+  const fio=(a,b,n,giro)=>{ for(let i=0;i<=n;i++){ const f=i/n, x=a[0]+(b[0]-a[0])*f, z=a[1]+(b[1]-a[1])*f, y=2.95-Math.sin(f*Math.PI)*0.35;
+      const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:cores[i%cores.length],side:THREE.DoubleSide})); m.position.set(x,y,z); m.rotation.y=giro; decorEvento.add(m); } };
+  fio([-4.6,-4.8],[4.6,-4.8],34,0); fio([-4.8,-4.6],[-4.8,4.4],32,Math.PI/2);
+  fio([-4.6,-4.6],[4.4,4.4],40,-Math.PI/4);
+}
+function baloesDecor(ev){
+  const cores=ev.bal||[0xE8433A,0xFFC93C,0x2F8FD8,0x3CB371];
+  [[-1.95,4.35],[4.3,1.6],[-4.3,-0.75]].forEach(([x,z])=>{
+    for(let i=0;i<5;i++){ const a=i/5*Math.PI*2, bx=x+Math.cos(a)*0.18, bz=z+Math.sin(a)*0.18, by=2.05+(i%2)*0.22;
+      const b=malha(ESF,toon(cores[i%cores.length]),decorEvento,bx,by,bz); b.scale.set(0.17,0.21,0.17); contorno(b,0.012);
+      const fio=malha(new THREE.CylinderGeometry(0.006,0.006,by-1.0,4),toon(0x777777),decorEvento,(bx+x)/2,(by+1.0)/2,(bz+z)/2,false); }
+    bloco(0.12,1.0,0.12,toon(0x8E9396),decorEvento,x,0.5,z,0.01,0.01);
+  });
+}
+function arvoreDecor(){
+  const g=new THREE.Group(); g.position.set(2.75,0,5.75); decorEvento.add(g);
+  malha(new THREE.CylinderGeometry(0.1,0.12,0.4,8),toon(0x7A4E2C),g,0,0.2,0);
+  [[0.75,0.9,0.75],[0.58,0.8,1.3],[0.4,0.7,1.8]].forEach(([r,h,y])=>contorno(malha(new THREE.ConeGeometry(r,h,14),toon(0x2E8B57),g,0,y,0),0.02));
+  const est=malha(ESF,toon(0xFFD54F,{emissive:0x6A5000}),g,0,2.25,0); est.scale.setScalar(0.12);
+  const cores=[0xE8433A,0xFFC93C,0x2F8FD8,0xF5F5F5];
+  for(let i=0;i<14;i++){ const a=i*2.4, y=0.6+(i/14)*1.4, r=0.72-(i/14)*0.5; const b=malha(ESF,toon(cores[i%4],{emissive:0x202020}),g,Math.cos(a)*r,y,Math.sin(a)*r,false); b.scale.setScalar(0.06); }
+}
+function luzesDecor(){
+  const cores=[0xFF5252,0xFFD54F,0x69F0AE,0x40C4FF];
+  for(let i=0;i<=46;i++){ const x=-4.75+i*0.205; const l=malha(ESF,new THREE.MeshBasicMaterial({color:cores[i%4]}),decorEvento,x,3.08,-4.78,false); l.scale.setScalar(0.045); }
+  for(let i=0;i<=44;i++){ const z=-4.6+i*0.205; const l=malha(ESF,new THREE.MeshBasicMaterial({color:cores[i%4]}),decorEvento,-4.78,3.08,z,false); l.scale.setScalar(0.045); }
+}
+function confeteDecor(){
+  const cores=[0xE8433A,0xFFC93C,0x3CB371,0x2F8FD8,0x9B5DE5,0xFF7A1A]; const g=new THREE.PlaneGeometry(0.07,0.07);
+  for(let i=0;i<160;i++){ const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:cores[i%6],side:THREE.DoubleSide})); m.rotation.x=-Math.PI/2; m.rotation.z=Math.random()*3; m.position.set(rnd(-4.5,4.5),0.012,rnd(-4.5,4.6)); decorEvento.add(m); }
+}
+function atualizarDecor(){
+  const ev=eventoAtual(), id=ev?ev.id:''; if(id===decorId) return; decorId=id; limparDecor(); if(!ev) return;
+  ev.dec.forEach(d=>{ if(d==='faixa') faixaDecor(ev); if(d==='bandeirinhas') bandeirinhasDecor(); if(d==='baloes') baloesDecor(ev); if(d==='arvore') arvoreDecor(); if(d==='luzes') luzesDecor(); if(d==='confete') confeteDecor(); });
+}
+// ---------- Aviso e missão especial ----------
+function avisarEvento(){
+  const ev=eventoAtual(); if(!ev||!S||!S.perfil) return;
+  const t=agoraSP(), chave=ev.id+'-'+t.y+(ev.id==='sextou'?'-'+mdSP(t):'');
+  if(S.eventoVisto===chave) return;
+  S.eventoVisto=chave; salvar();
+  toastMissao(ev.ic+' '+ev.nome+'! Vendas +'+Math.round(ev.bonus*100)+'%'+(ev.fornecedor?' e fornecedor 30% mais barato':'')+' até '+ev.ate+'.');
+}
+function adicionarMissaoEvento(M){
+  const ev=eventoAtual(); if(!ev||!M||M.lista.some(m=>m.evento===ev.id)) return;
+  M.lista.push({tipo:'cobrar',setor:null,n:pega([60,80,100]),prog:0,pega:false,premio:Math.max(1500,Math.round(rendaRefMissao()*15)),evento:ev.id,evNome:ev.nome,evIc:ev.ic});
+  salvar();
+}
+setInterval(()=>{ if(S&&document.body.classList.contains('jogando')){ atualizarDecor(); avisarEvento(); } },30000);
+setTimeout(()=>{ if(S){ atualizarDecor(); avisarEvento(); } },3500);
+
 // ================= Experiência e nível do jogador =================
 const XP_EVENTO={cobrar:1,cobrarManual:1,mesa:2,repor:2,melhorar:3,entrega:15,tarefa:30,missao:20,bau:50};
 const xpProximo=n=>Math.round(60*Math.pow(n,1.4));
@@ -2515,6 +2602,7 @@ function garantirMissoes(){
     S.missoes=M={dia:hoje,lista,bauPego:false,seq};
     salvar();
   }
+  adicionarMissaoEvento(M);
   return M;
 }
 let tToastMissao=0;
@@ -2530,8 +2618,9 @@ const premioBau=M=>Math.round(rendaRefMissao()*15*(1+0.1*Math.min(7,(M.seq||0)+1
 function atualizarBtnMissoes(){
   const b=$('#btnMissoes'); if(!b) return;
   const lib=missoesLiberadas(); b.hidden=!lib; if(!lib) return;
+  const evB=eventoAtual(); const tx=(evB?evB.ic:'📅')+' Missões'; if($('#missoesTxt').textContent!==tx) $('#missoesTxt').textContent=tx;
   const M=S.missoes; let n=0;
-  if(M&&M.lista){ n=M.lista.filter(m=>m.prog>=m.n&&!m.pega).length; if(!M.bauPego&&M.lista.every(m=>m.pega)) n++; }
+  if(M&&M.lista){ n=M.lista.filter(m=>m.prog>=m.n&&!m.pega).length; if(!M.bauPego&&M.lista.filter(m=>!m.evento).every(m=>m.pega)) n++; }
   const bd=$('#missoesBadge'); bd.textContent=n; bd.hidden=!n;
 }
 function textoMissao(m){ const p=POOL_MISSOES.find(x=>x.tipo===m.tipo); return p?p.txt(m.n,m.setor):''; }
@@ -2542,19 +2631,20 @@ function renderMissoes(){
   const fimDia=new Date(diaSP(agora)+'T23:59:59-03:00').getTime(); const falta=Math.max(0,fimDia-agora);
   const hh=Math.floor(falta/3600000), mm=Math.floor(falta%3600000/60000);
   const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
+  const evA=eventoAtual(); if(evA) add(`<div class="ev-banner">${evA.ic} <b>${evA.nome}</b>: vendas +${Math.round(evA.bonus*100)}%${evA.fornecedor?' e fornecedor 30% mais barato':''} até ${evA.ate}.</div>`);
   add(`<p class="txt" style="color:var(--sub);font-size:.9rem">Novas missões em ${hh} h ${mm} min.</p>`);
   M.lista.forEach((m,i)=>{
-    const p=POOL_MISSOES.find(x=>x.tipo===m.tipo)||{ic:'⭐'}, feito=m.prog>=m.n, pct=Math.round(100*m.prog/m.n);
+    const p=m.evento?{ic:m.evIc}:(POOL_MISSOES.find(x=>x.tipo===m.tipo)||{ic:'⭐'}), feito=m.prog>=m.n, pct=Math.round(100*m.prog/m.n);
     const d=document.createElement('div'); d.className='missao'+(m.pega?' pega':'');
     const prog=m.tipo==='faturar'?fmt(m.prog)+' / '+fmt(m.n):m.prog+' / '+m.n;
-    d.innerHTML=`<div class="missao-ic">${p.ic}</div><div class="missao-corpo"><div class="missao-txt">${textoMissao(m)}</div><div class="missao-barra"><i style="width:${pct}%"></i></div><div class="missao-info">${prog} · prêmio 💵 ${fmt(m.premio)}</div></div>`;
+    d.innerHTML=`<div class="missao-ic">${p.ic}</div><div class="missao-corpo"><div class="missao-txt">${m.evento?'<span class="ev-tag">'+m.evNome+'</span> ':''}${textoMissao(m)}</div><div class="missao-barra"><i style="width:${pct}%"></i></div><div class="missao-info">${prog} · prêmio 💵 ${fmt(m.premio)}</div></div>`;
     const bt=document.createElement('button'); bt.type='button'; bt.className='btn peq missao-btn';
     if(m.pega){ bt.textContent='✔'; bt.disabled=true; }
     else if(feito){ bt.textContent='Pegar'; bt.addEventListener('click',()=>{ m.pega=true; S.din+=m.premio; ganharXP('missao',1); SOM.coletar(); salvar(); atualizarHUD(true); atualizarBtnMissoes(); renderMissoes(); }); }
     else { bt.textContent=pct+'%'; bt.disabled=true; }
     d.appendChild(bt); b.appendChild(d);
   });
-  const todas=M.lista.every(m=>m.pega), pb=premioBau(M);
+  const todas=M.lista.filter(m=>!m.evento).every(m=>m.pega), pb=premioBau(M);
   const bau=document.createElement('div'); bau.className='bau'+(M.bauPego?' aberto':'');
   bau.innerHTML=`<div class="bau-ic">${M.bauPego?'🎉':'🎁'}</div><div class="missao-corpo"><div class="missao-txt">Baú do dia</div><div class="missao-info">${M.bauPego?'Aberto! Volte amanhã para manter a sequência.':'Complete as 3 missões para abrir · 💵 '+fmt(pb)}</div><div class="missao-info">🔥 Sequência: ${M.seq||0} ${M.seq===1?'dia':'dias'} seguidos · bônus +${10*Math.min(7,(M.seq||0)+1)}%</div></div>`;
   const bb=document.createElement('button'); bb.type='button'; bb.className='btn amarelo peq missao-btn';
