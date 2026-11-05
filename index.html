@@ -589,7 +589,10 @@ const multPrest=()=>1+0.25*((S&&S.prest)||0);
 function marcosAte(n){return MARCOS.filter(m=>n>=m).length;}
 function valorEst(id,n){n=n||S.est[id].nivel;return EST[id].valor*n*Math.pow(2,marcosAte(n))*multPrest()*multNivel()*multEvento();}
 function tempoEst(id,n){n=n||S.est[id].nivel;return EST[id].tempo/(1+0.35*marcosAte(n));}
-function custoEst(id){const n=S.est[id].nivel;return Math.ceil(EST[id].custo*Math.pow(1.2,n-1));}
+// Preço das melhorias: +20% por nível até o 40; depois, +5% por nível (para a venda no nível 100 ser alcançável)
+const NIVEL_CURVA=40, CRESC_ANTES=1.2, CRESC_DEPOIS=1.05;
+function custoNivelSetor(id,n){ return Math.ceil(EST[id].custo*Math.pow(CRESC_ANTES,Math.min(n,NIVEL_CURVA)-1)*Math.pow(CRESC_DEPOIS,Math.max(0,n-NIVEL_CURVA))); }
+function custoEst(id){ return custoNivelSetor(id,S.est[id].nivel); }
 function custoCaixaV(){return Math.ceil(2500*Math.pow(1.6,S.caixaV-1));}
 function tempoPagar(v){return 2.4*Math.pow(0.86,(v||S.caixaV)-1);}
 function custoLetreiro(){return Math.ceil(20*Math.pow(1.62,S.letreiro-1));}
@@ -2318,7 +2321,10 @@ const COMPRADORES=[
 function vendaLiberada(){ return !!(S&&!S.falido&&IDS.every(id=>S.est[id].aberta&&S.est[id].nivel>=100)); }
 const pontosVenda=v=>Math.max(0.5,Math.log10(Math.max(v,1))-6);
 const bonusPct=p=>Math.round(25*p);
-function investidoSetor(id){ const n=S.est[id].nivel, c=EST[id].custo; return EST[id].abrir*multPrest()+c*(Math.pow(1.2,n-1)-1)/0.2; }
+function investidoSetor(id){ const n=S.est[id].nivel, c=EST[id].custo, m=Math.min(n,NIVEL_CURVA), topo=Math.pow(CRESC_ANTES,NIVEL_CURVA-1);
+  let tot=c*(Math.pow(CRESC_ANTES,m-1)-1)/(CRESC_ANTES-1);
+  if(n>NIVEL_CURVA) tot+=c*topo*(Math.pow(CRESC_DEPOIS,n-NIVEL_CURVA)-1)/(CRESC_DEPOIS-1);
+  return EST[id].abrir*multPrest()+tot; }
 function valuation(){
   const mediaVenda=IDS.reduce((a,id)=>a+valorEst(id),0)/IDS.length;
   const rendaMin=Math.max(taxaPorMin(),mediaVenda*25);
@@ -2975,7 +2981,7 @@ function blocoExtras(){
     (faseExtraPainel==='livre'?`<button class="btn azul" id="bExtra">Liberar mesas extras por 15 min</button>`:'')+
     `<p style="${nota}">As 2 mesas na frente do balcão são temporárias: ficam 15 minutos liberadas e depois descansam 15 minutos. O tempo só corre com o jogo aberto.</p>`;
 }
-function quantosCompra(k){ let d=S.din,n=S.est[k].nivel,q=0; while(q<500){ const c=Math.ceil(EST[k].custo*Math.pow(1.2,n-1)); if(d<c) break; d-=c; n++; q++; } return q; }
+function quantosCompra(k){ let d=S.din,n=S.est[k].nivel,q=0; while(q<500){ const c=custoNivelSetor(k,n); if(d<c) break; d-=c; n++; q++; } return q; }
 function acao(k,silencioso){
   if(IDS.includes(k)){
     const e=S.est[k];
