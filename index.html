@@ -2537,7 +2537,7 @@ function avisarEvento(){
 }
 function adicionarMissaoEvento(M){
   const ev=eventoAtual(); if(!ev||!M||M.lista.some(m=>m.evento===ev.id)) return;
-  M.lista.push({tipo:'cobrar',setor:null,n:pega([60,80,100]),prog:0,pega:false,premio:Math.max(1500,Math.round(rendaRefMissao()*15)),evento:ev.id,evNome:ev.nome,evIc:ev.ic});
+  M.lista.push({tipo:'cobrar',setor:null,n:pega([60,80,100]),prog:0,pega:false,premio:Math.max(1000,Math.round(rendaRefMissao()*4*(M.fator||1))),evento:ev.id,evNome:ev.nome,evIc:ev.ic});
   salvar();
 }
 setInterval(()=>{ if(S&&document.body.classList.contains('jogando')){ atualizarDecor(); avisarEvento(); } },30000);
@@ -2557,7 +2557,7 @@ function somarXP(g,silencioso){
 }
 function ganharXP(tipo,q){ somarXP((XP_EVENTO[tipo]||0)*(q||1)); }
 function subiuNivel(sub){
-  const p=Math.max(500,Math.round(rendaRefMissao()*3*sub)); S.din+=p; SOM.marco();
+  const p=Math.max(500,Math.round(rendaRefMissao()*2*sub)); S.din+=p; SOM.marco();
   toastMissao('⭐ Nível '+S.nivelJ+'! +1% em todas as vendas e 💵 '+fmt(p)); salvar(); atualizarHUD(true);
 }
 function renderNivelBox(){
@@ -2581,16 +2581,18 @@ setTimeout(()=>{ if(S){ migrarXP(); atualizarNivelHUD(); } },2000);
 // ================= Missões diárias =================
 const NOMES_VENDA={refri:'refrigerantes',agua:'águas e sucos',salgadinho:'salgadinhos',gelo:'sacos de gelo',carvao:'sacos de carvão',mercearia:'itens da mercearia'};
 const POOL_MISSOES=[
-  {tipo:'cobrar',ic:'🧾',txt:n=>`Atenda ${n} clientes no caixa`,n:()=>pega([30,50,80])},
-  {tipo:'cobrarManual',ic:'💳',req:()=>S.caixas>(S.operadores||0),txt:n=>`Cobre ${n} clientes tocando no balão`,n:()=>pega([10,20,30])},
-  {tipo:'vender',ic:'🛒',setor:true,txt:(n,id)=>`Venda ${n} ${NOMES_VENDA[id]||'produtos'}`,n:()=>pega([25,40,60])},
-  {tipo:'melhorar',ic:'⬆️',txt:n=>`Faça ${n} melhorias nos setores`,n:()=>pega([5,10,15])},
-  {tipo:'repor',ic:'🚚',txt:n=>`Peça reposição ao fornecedor ${n} vezes`,n:()=>pega([3,5])},
-  {tipo:'faturar',ic:'💵',txt:n=>`Fature ${fmt(n)} hoje`,n:()=>Math.max(5000,Math.round(rendaRefMissao()*20/1000)*1000)},
+  {tipo:'cobrar',ic:'🧾',txt:n=>`Atenda ${n} clientes no caixa`,n:()=>metaClientes(12)},
+  {tipo:'cobrarManual',ic:'💳',req:()=>S.caixas>(S.operadores||0),txt:n=>`Cobre ${n} clientes tocando no balão`,n:()=>metaClientes(5)},
+  {tipo:'vender',ic:'🛒',setor:true,txt:(n,id)=>`Venda ${n} ${NOMES_VENDA[id]||'produtos'}`,n:()=>metaClientes(14/Math.max(1,IDS.filter(i=>S.est[i].aberta).length))},
+  {tipo:'melhorar',ic:'⬆️',txt:n=>`Faça ${n} melhorias nos setores`,n:()=>pega([3,5,8])},
+  {tipo:'repor',ic:'🚚',txt:n=>`Peça reposição ao fornecedor ${n} vezes`,n:()=>pega([3,4])},
+  {tipo:'faturar',ic:'💵',txt:n=>`Fature ${fmt(n)} hoje`,n:()=>Math.max(5000,Math.round(rendaRefMissao()*25/1000)*1000)},
   {tipo:'mesa',ic:'🍽️',req:()=>S.mesas&&S.mesas.n>0,txt:n=>`Sirva ${n} clientes nas mesas`,n:()=>pega([10,20])},
   {tipo:'entrega',ic:'🛵',req:()=>entregasLiberadas(),txt:n=>`Faça ${n} entregas de moto`,n:()=>pega([2,3,5])}
 ];
 const diaSP=t=>new Date(t).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+function clientesPorMin(){ const ab=IDS.filter(i=>S.est[i].aberta); const m=ab.length?ab.reduce((a,i)=>a+valorEst(i),0)/ab.length:4; const t=taxaPorMin(); return t>0?Math.min(30,Math.max(4,t/m)):8; }
+function metaClientes(min){ return Math.max(10,Math.round(clientesPorMin()*min/5)*5); }
 function rendaRefMissao(){ const ab=IDS.filter(i=>S.est[i].aberta); const m=ab.length?ab.reduce((a,i)=>a+valorEst(i),0)/ab.length:4; return Math.max(taxaPorMin(),m*10); }
 function missoesLiberadas(){ return !!(S&&S.perfil&&S.tarefa>=3&&!S.falido); }
 const CICLO_MISSOES=6*3600e3;
@@ -2601,9 +2603,11 @@ function garantirMissoes(){
   if(!M||!ini||agora>=ini+CICLO_MISSOES){
     const seq=M&&M.bauPego&&ini&&agora<ini+CICLO_MISSOES+24*3600e3?(M.seq||0):0;
     const disp=POOL_MISSOES.filter(p=>!p.req||p.req()).sort(()=>Math.random()-0.5).slice(0,3);
-    const premio=Math.max(500,Math.round(rendaRefMissao()*5));
+    const hojeR=diaSP(agora); S.rodadasDia=(S.rodadasDia&&S.rodadasDia.dia===hojeR)?{dia:hojeR,n:S.rodadasDia.n+1}:{dia:hojeR,n:1};
+    const fator=S.rodadasDia.n<=2?1:0.5;
+    const premio=Math.max(300,Math.round(rendaRefMissao()*1.5*fator));
     const lista=disp.map(p=>({tipo:p.tipo,setor:p.setor?pega(IDS.filter(i=>S.est[i].aberta)):null,n:p.n(),prog:0,pega:false,premio}));
-    S.missoes=M={inicio:agora,dia:diaSP(agora),lista,bauPego:false,seq};
+    S.missoes=M={inicio:agora,dia:diaSP(agora),lista,bauPego:false,seq,fator,rodada:S.rodadasDia.n};
     salvar();
   }
   adicionarMissaoEvento(M);
@@ -2618,7 +2622,7 @@ function missaoEvento(tipo,qtd,setor){
   M.lista.forEach(m=>{ if(m.tipo===tipo&&(!m.setor||m.setor===setor)&&m.prog<m.n){ m.prog=Math.min(m.n,m.prog+qtd); mud=true; if(m.prog>=m.n){ SOM.marco(); toastMissao('✅ Missão concluída! Pegue o prêmio em 📅 Missões'); } } });
   if(mud){ atualizarBtnMissoes(); if(!$('#telaMissoes').hidden) renderMissoes(); }
 }
-const premioBau=M=>Math.round(rendaRefMissao()*15*(1+0.1*Math.min(7,(M.seq||0)+1)));
+const premioBau=M=>Math.round(rendaRefMissao()*4*(1+0.05*Math.min(6,M.seq||0))*(M.fator||1));
 function atualizarBtnMissoes(){
   const b=$('#btnMissoes'); if(!b) return;
   const lib=missoesLiberadas(); b.hidden=!lib; if(!lib) return;
@@ -2636,6 +2640,7 @@ function renderMissoes(){
   const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
   const evA=eventoAtual(); if(evA) add(`<div class="ev-banner">${evA.ic} <b>${evA.nome}</b>: vendas +${Math.round(evA.bonus*100)}%${evA.fornecedor?' e fornecedor 30% mais barato':''} até ${evA.ate}.</div>`);
   add(`<p class="txt" style="color:var(--sub);font-size:.9rem">Novas missões em ${hh} h ${mm} min.</p>`);
+  if((M.fator||1)<1) add(`<div class="ev-banner" style="background:var(--painel2)">🔁 Rodada ${M.rodada||3} de hoje: prêmios pela metade. As 2 primeiras rodadas do dia pagam o valor cheio.</div>`);
   M.lista.forEach((m,i)=>{
     const p=m.evento?{ic:m.evIc}:(POOL_MISSOES.find(x=>x.tipo===m.tipo)||{ic:'⭐'}), feito=m.prog>=m.n, pct=Math.round(100*m.prog/m.n);
     const d=document.createElement('div'); d.className='missao'+(m.pega?' pega':'');
@@ -2649,13 +2654,13 @@ function renderMissoes(){
   });
   const todas=M.lista.filter(m=>!m.evento).every(m=>m.pega), pb=premioBau(M);
   const bau=document.createElement('div'); bau.className='bau'+(M.bauPego?' aberto':'');
-  bau.innerHTML=`<div class="bau-ic">${M.bauPego?'🎉':'🎁'}</div><div class="missao-corpo"><div class="missao-txt">Baú do dia</div><div class="missao-info">${M.bauPego?'Aberto! Volte quando as próximas missões chegarem para manter a sequência.':'Complete as 3 missões para abrir · 💵 '+fmt(pb)}</div><div class="missao-info">🔥 Sequência: ${M.seq||0} ${M.seq===1?'baú':'baús'} seguidos · bônus +${10*Math.min(7,(M.seq||0)+1)}%</div></div>`;
+  bau.innerHTML=`<div class="bau-ic">${M.bauPego?'🎉':'🎁'}</div><div class="missao-corpo"><div class="missao-txt">Baú do dia</div><div class="missao-info">${M.bauPego?'Aberto! Volte quando as próximas missões chegarem para manter a sequência.':'Complete as 3 missões para abrir · 💵 '+fmt(pb)}</div><div class="missao-info">🔥 Sequência: ${M.seq||0} ${M.seq===1?'baú':'baús'} seguidos · bônus +${5*Math.min(6,M.seq||0)}%</div></div>`;
   const bb=document.createElement('button'); bb.type='button'; bb.className='btn amarelo peq missao-btn';
   if(M.bauPego){ bb.textContent='✔'; bb.disabled=true; }
   else if(todas){ bb.textContent='Abrir'; bb.addEventListener('click',()=>{ M.bauPego=true; M.seq=(M.seq||0)+1; S.din+=pb; ganharXP('bau',1); SOM.marco(); salvar(); atualizarHUD(true); atualizarBtnMissoes(); renderMissoes(); }); }
   else { bb.textContent='🔒'; bb.disabled=true; }
   bau.appendChild(bb); b.appendChild(bau);
-  add('<p class="txt" style="font-size:.82rem;color:var(--sub)">Os prêmios das missões entram no seu caixa. Novas missões chegam 6 horas depois de cada rodada. Abra o baú em todas as rodadas para aumentar a sequência (até +70%).</p>');
+  add('<p class="txt" style="font-size:.82rem;color:var(--sub)">Os prêmios das missões entram no seu caixa. Novas missões chegam 6 horas depois de cada rodada. As 2 primeiras rodadas do dia pagam o prêmio cheio; as seguintes, metade. Abra o baú em todas as rodadas para aumentar a sequência (até +30%).</p>');
 }
 function abrirMissoes(){ garantirMissoes(); renderMissoes(); $('#telaMissoes').hidden=false; SOM.abrir(); }
 $('#btnMissoes').addEventListener('click',abrirMissoes);
