@@ -92,6 +92,11 @@ td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
     <div id="resultado" role="status" aria-live="polite"></div>
   </section>
 
+  <section class="cartao" id="boxProgresso">
+    <div class="cab-res"><h2>📈 Progresso dos jogadores</h2><button type="button" id="btnProgresso">Atualizar</button></div>
+    <div id="progresso"><p class="vazio">Digite a senha e toque em Atualizar para ver o progresso de cada jogador.</p></div>
+  </section>
+
   <section class="cartao" id="boxSeguranca">
     <div class="cab-res"><h2>🛡️ Segurança</h2><button type="button" id="btnSeguranca">Atualizar</button></div>
     <div id="seguranca"><p class="vazio">Digite a senha e toque em Atualizar para ver suspeitas de fraude.</p></div>
@@ -305,6 +310,29 @@ async function acaoSeg(apelido,bloquear){
   try{ await rpc('seg_bloquear',{p_senha:$('#senha').value,p_apelido:apelido,p_bloquear:bloquear}); await carregarSeguranca(); }
   catch(e){ alert(/apelido_nao_encontrado/.test(e.message)?'Apelido não encontrado.':'Não foi possível concluir agora.'); }
 }
+// ---------- Progresso dos jogadores ----------
+const horasTxt=h=>String(h).replace('.',',')+' h';
+async function carregarProgresso(){
+  const senha=$('#senha').value, box=$('#progresso');
+  if(!senha){ box.innerHTML='<p class="vazio">Digite a senha do balcão lá em cima.</p>'; return; }
+  try{
+    const r=await rpc('progresso_jogadores',{p_senha:senha}), R=r.resumo; box.innerHTML='';
+    const g=el('div','grade');
+    g.append(cartaoNum('jogadores com progresso salvo',String(R.jogadores)),cartaoNum('horas de jogo, em média',horasTxt(R.media_horas),true),
+             cartaoNum('completaram as 16 tarefas',String(R.tarefas_completas)),cartaoNum('todos os setores no nível 40',String(R.nivel40)));
+    box.appendChild(g);
+    box.appendChild(el('p','vazio','Venda da Adega (todos no nível 100): '+R.nivel100+' jogador(es). O tempo de jogo é medido pelo banco desde a instalação da proteção anti-fraude.'));
+    box.appendChild(el('div','sub-tit','Jogadores, do mais ativo ao menos ativo'));
+    if(!r.lista.length) box.appendChild(el('p','vazio','Nenhum jogador com progresso salvo ainda.'));
+    else box.appendChild(tabela([['Jogador'],['Jogo',1],['Setores',1],['Tarefas',1],['Nível',1]],
+      r.lista.map(j=>[(j.falido?'📉 ':'')+j.apelido+(j.adega>1?' · adega nº '+j.adega:''),horasTxt(j.horas),j.setores+(j.setores===1?' aberto':' abertos')+' · nv '+(j.menor??'-')+(j.maior!==j.menor?'–'+j.maior:''),j.tarefas+'/16','⭐ '+j.nivel_jogador])));
+  }catch(e){
+    box.innerHTML=''; const k=Object.keys(MSG).find(x=>e.message.indexOf(x)>=0);
+    box.appendChild(el('p','vazio',k?MSG[k]:(/progresso_jogadores/.test(e.message)?'Esta consulta ainda não foi instalada no banco. Rode o supabase-progresso-jogadores.sql no Supabase.':'Não foi possível carregar agora. Confira a internet.')));
+  }
+}
+$('#btnProgresso').addEventListener('click',carregarProgresso);
+if($('#senha').value) setTimeout(carregarProgresso,650);
 $('#btnSeguranca').addEventListener('click',carregarSeguranca);
 if($('#senha').value) setTimeout(carregarSeguranca,600);
 $('#btnModeracao').addEventListener('click',carregarModeracao);
