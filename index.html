@@ -66,6 +66,17 @@ body:not(.jogando) .btn-venda{display:none}
 .nv-info{font-weight:800;font-size:.8rem;color:var(--sub)}
 .btn-corretora{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#2D3277;color:#fff;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno)}
 body:not(.jogando) .btn-corretora{display:none}
+.guia-ic{font-size:3.6rem;line-height:1;margin:4px 0 6px}
+.guia-tit{font-family:'Lilita One',sans-serif;font-weight:400;font-size:1.6rem;margin:0 0 8px;color:var(--texto,#2A1A12)}
+.guia-txt{text-align:left;font-size:1.02rem;line-height:1.45;min-height:9.5em}
+.guia-dic p{margin:0 0 8px}
+.guia-pontos{display:flex;gap:6px;justify-content:center;margin:10px 0}
+.guia-pontos i{width:9px;height:9px;border-radius:50%;background:#D9CFBF;border:2px solid #2A1A12}
+.guia-pontos i.on{background:#FFC93C;width:22px;border-radius:6px}
+.guia-nav{display:flex;gap:10px}
+.guia-nav .btn{flex:1}
+.guia-aviso{font-size:.78rem;color:var(--sub)}
+.guia-btn{display:block;margin:0 auto 8px;font-size:.9rem}
 .corr-saldo{display:flex;justify-content:space-between;align-items:center;gap:8px;border:3px solid var(--contorno);border-radius:14px;padding:10px 14px;background:#2D3277;color:#fff;margin-bottom:8px}
 .corr-saldo span{font-weight:800}
 .corr-saldo b{font-family:'Lilita One',sans-serif;font-size:1.6rem;color:#FFC93C}
@@ -360,6 +371,14 @@ body:not(.jogando) .alerta{display:none}
   <div class="caixa">
     <div class="papo-topo"><h2 class="titulo" style="font-size:1.7rem">📈 Corretora da Adega</h2><button class="pilula" id="btnCorretoraFechar" type="button" aria-label="Fechar">✕</button></div>
     <div id="corrConteudo"></div>
+  </div>
+</section>
+
+<section class="tela" id="telaGuiaCorr" hidden>
+  <div class="caixa centro">
+    <div class="papo-topo"><span></span><button class="pilula" id="guiaCorrFechar" type="button" aria-label="Fechar o guia">✕</button></div>
+    <div id="guiaCorrConteudo"></div>
+    <div class="guia-nav"><button class="btn" id="guiaCorrVoltar" type="button" style="background:var(--painel2);color:var(--texto,#2A1A12)">Voltar</button><button class="btn amarelo" id="guiaCorrProx" type="button">Próximo</button></div>
   </div>
 </section>
 <button class="btn-missoes" id="btnMissoes" type="button" hidden><span id="missoesTxt">📅 Missões</span><span class="badge-missoes" id="missoesBadge" hidden>0</span></button>
@@ -2710,6 +2729,7 @@ function renderCorretora(){
   const C=corrStatus, b=$('#corrConteudo'); b.innerHTML='';
   const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
   add(`<div class="corr-saldo"><span>Saldo na corretora</span><b>💵 ${fmt(Number(C.saldo))}</b></div>`);
+  const bg=document.createElement('button'); bg.type='button'; bg.className='pilula guia-btn'; bg.textContent='❓ Como funciona a corretora'; bg.addEventListener('click',abrirGuiaCorr); b.appendChild(bg);
   add('<p class="txt">A corretora é onde fica o dinheiro que você separa para <b>investir</b>. Em breve, você poderá comprar ações das adegas de outros jogadores quando elas abrirem capital na bolsa (IPO).</p>');
   if(!C.liberado){ add(`<p class="txt"><b>🔒 Libera quando todos os setores da sua adega chegarem ao nível 40.</b> Seu setor mais baixo está no nível ${C.menor_nivel}.</p>`); return; }
   const disp=Number(C.disponivel_hoje), lim=Number(C.limite_dia);
@@ -2743,9 +2763,34 @@ function renderCorretora(){
   C.extrato.forEach(e=>add(`<div class="stat"><span>${e.descricao}<br><small>${new Date(e.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small></span><b>+${fmt(Number(e.valor))}</b></div>`));
   add('<p class="txt" style="font-size:.78rem;color:var(--sub);margin-top:8px">Simulação educativa com dinheiro fictício do jogo. Não é recomendação de investimento.</p>');
 }
-function abrirCorretora(){ $('#telaCorretora').hidden=false; SOM.abrir(); carregarCorretora(); }
+function abrirCorretora(){ $('#telaCorretora').hidden=false; SOM.abrir(); carregarCorretora(); if(!S.guiaCorrVisto) abrirGuiaCorr(); }
 $('#btnCorretora').addEventListener('click',abrirCorretora);
 $('#btnCorretoraFechar').addEventListener('click',()=>{ $('#telaCorretora').hidden=true; });
+
+// ================= Guia da Corretora (explicação simples) =================
+const GUIA_CORR=[
+  {ic:'📈',tit:'Bem-vindo à Corretora!',txt:'Aqui você aprende a <b>investir</b>, brincando. Tudo usa o <b>dinheiro do jogo</b>, nunca dinheiro de verdade.<br><br>E é opcional: se não quiser usar, sua adega continua funcionando igualzinho.'},
+  {ic:'💵',tit:'1. Separe um dinheiro',txt:'Você passa uma parte do caixa da sua adega para a corretora. Isso se chama <b>aporte</b>.<br><br>Tem um <b>limite por dia</b>, para você nunca colocar tudo de uma vez e deixar a adega sem dinheiro para repor o estoque.'},
+  {ic:'🏪',tit:'2. Adegas viram empresas',txt:'Quando um jogador deixa todos os setores no <b>nível 60</b>, ele pode “abrir o capital” da adega: dividir a empresa em pedacinhos, chamados <b>ações</b>, e vender alguns para outros jogadores.<br><br>Essa estreia na bolsa se chama <b>IPO</b>.'},
+  {ic:'🤝',tit:'3. Você vira sócio',txt:'Com o dinheiro da corretora, você compra ações das adegas dos outros. Quem tem ações é <b>sócio</b> da empresa.<br><br>Se a adega vai bem, a ação passa a valer mais, e você ainda recebe uma parte do lucro, chamada <b>dividendo</b>.'},
+  {ic:'⚠️',tit:'4. Investir tem risco',txt:'Se a adega vai mal, a ação perde valor. Se ela fecha, a ação pode virar zero.<br><br>Por isso, a regra de ouro: <b>não coloque tudo numa adega só</b>. Dividir entre várias se chama <b>diversificar</b>.'},
+  {ic:'🗓️',tit:'O que já funciona e o que vem aí',txt:'<b>Já funciona:</b> aportes e extrato.<br><br><b>Em breve:</b> os IPOs das adegas, a compra e venda de ações e os dividendos.<br><br>O dinheiro que você aportar fica guardado na corretora até lá.'},
+  {ic:'📖',tit:'Palavrinhas da bolsa',txt:'<div class="guia-dic"><p><b>Aporte:</b> dinheiro que você separa para investir.</p><p><b>Ação:</b> um pedacinho de uma empresa.</p><p><b>IPO:</b> quando a empresa começa a vender ações na bolsa.</p><p><b>Dividendo:</b> parte do lucro que a empresa divide com os sócios.</p><p><b>Diversificar:</b> investir em várias empresas para diminuir o risco.</p></div>'}
+];
+let guiaPasso=0;
+function renderGuiaCorr(){
+  const g=GUIA_CORR[guiaPasso], ult=guiaPasso===GUIA_CORR.length-1;
+  $('#guiaCorrConteudo').innerHTML=`<div class="guia-ic">${g.ic}</div><h3 class="guia-tit">${g.tit}</h3><div class="txt guia-txt">${g.txt}</div>
+    <div class="guia-pontos">${GUIA_CORR.map((_,i)=>`<i class="${i===guiaPasso?'on':''}"></i>`).join('')}</div>`;
+  $('#guiaCorrVoltar').style.visibility=guiaPasso?'visible':'hidden';
+  $('#guiaCorrProx').textContent=ult?'Entendi!':'Próximo';
+  if(ult) $('#guiaCorrConteudo').insertAdjacentHTML('beforeend','<p class="txt guia-aviso">Simulação educativa com dinheiro fictício do jogo. Não é recomendação de investimento.</p>');
+}
+function abrirGuiaCorr(){ guiaPasso=0; renderGuiaCorr(); $('#telaGuiaCorr').hidden=false; SOM.abrir(); }
+function fecharGuiaCorr(){ $('#telaGuiaCorr').hidden=true; if(!S.guiaCorrVisto){ S.guiaCorrVisto=true; salvar(); } }
+$('#guiaCorrProx').addEventListener('click',()=>{ if(guiaPasso<GUIA_CORR.length-1){ guiaPasso++; renderGuiaCorr(); } else fecharGuiaCorr(); });
+$('#guiaCorrVoltar').addEventListener('click',()=>{ if(guiaPasso>0){ guiaPasso--; renderGuiaCorr(); } });
+$('#guiaCorrFechar').addEventListener('click',fecharGuiaCorr);
 
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
