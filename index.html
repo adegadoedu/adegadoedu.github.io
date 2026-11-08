@@ -55,7 +55,7 @@ body:not(.jogando) .hud{display:none}
 
 .selo{position:fixed;left:0;top:0;translate:-50% -100%;z-index:4;display:flex;align-items:center;gap:4px;border:3px solid var(--contorno);border-radius:12px;background:#fff;color:#2A1A12;padding:3px 8px;font-weight:900;font-size:.85rem;box-shadow:0 3px 0 #2A1A12;white-space:nowrap;cursor:pointer}
 .selo.pode{background:#C9F7D8}
-.btn-venda{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#1F4D3A;color:#FFC93C;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno);animation:pulo 1.6s ease-in-out infinite}
+.btn-venda{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 208px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#1F4D3A;color:#FFC93C;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno);animation:pulo 1.6s ease-in-out infinite}
 body:not(.jogando) .btn-venda{display:none}
 .nv-badge{position:absolute;bottom:-7px;right:-7px;min-width:22px;height:22px;border-radius:11px;background:#FFC93C;color:#2A1A12;border:2px solid #2A1A12;font:900 .72rem 'Nunito',sans-serif;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none}
 .nv-badge[hidden]{display:none}
@@ -64,6 +64,16 @@ body:not(.jogando) .btn-venda{display:none}
 .nv-linha{display:flex;justify-content:space-between;gap:8px;align-items:baseline;font-weight:900}
 .nv-linha span{font-size:.85rem;color:var(--sub)}
 .nv-info{font-weight:800;font-size:.8rem;color:var(--sub)}
+.btn-corretora{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#2D3277;color:#fff;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno)}
+body:not(.jogando) .btn-corretora{display:none}
+.corr-saldo{display:flex;justify-content:space-between;align-items:center;gap:8px;border:3px solid var(--contorno);border-radius:14px;padding:10px 14px;background:#2D3277;color:#fff;margin-bottom:8px}
+.corr-saldo span{font-weight:800}
+.corr-saldo b{font-family:'Lilita One',sans-serif;font-size:1.6rem;color:#FFC93C}
+.corr-aporte{border:3px solid var(--contorno);border-radius:14px;padding:10px 12px;margin:8px 0;background:var(--painel2)}
+.corr-aporte input{width:100%;box-sizing:border-box;margin:8px 0;padding:10px 12px;border:3px solid var(--contorno);border-radius:12px;font:900 1.1rem 'Nunito',sans-serif;background:#fff;color:#2A1A12}
+.corr-rapidos{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+#cadRespBox[hidden]{display:none}
+#cadRespBox{background:#FFF3C4;border-radius:10px;padding:6px 8px}
 .btn-missoes{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 150px);z-index:6;font:900 1rem 'Nunito',sans-serif;background:#FFC93C;color:#2A1A12;border:4px solid var(--contorno);border-radius:999px;padding:10px 16px;box-shadow:0 5px 0 var(--contorno)}
 body:not(.jogando) .btn-missoes{display:none}
 .badge-missoes{position:absolute;top:-10px;right:-8px;min-width:24px;height:24px;border-radius:12px;background:#E8433A;color:#fff;border:3px solid #2A1A12;font-size:.8rem;display:flex;align-items:center;justify-content:center;padding:0 4px;animation:pulo 1s ease-in-out infinite}
@@ -292,6 +302,7 @@ body:not(.jogando) .alerta{display:none}
     <label class="campo"><span>Nome ou apelido</span><input id="cadNome" maxlength="20" autocomplete="nickname" placeholder="Como você quer aparecer no ranking"></label>
     <label class="campo"><span>Idade</span><input id="cadIdade" type="number" inputmode="numeric" min="1" max="120" placeholder="Sua idade"></label>
     <label class="campo"><span>Crie uma senha</span><input id="cadSenha" type="password" maxlength="30" autocomplete="new-password" placeholder="Mínimo 4 caracteres, para entrar em outros aparelhos"></label>
+    <label class="aceite" id="cadRespBox" hidden><input type="checkbox" id="cadResp"><span>Tenho menos de 12 anos e minha mãe, meu pai ou outro adulto responsável <b>autorizou</b> o meu cadastro no jogo.</span></label>
     <label class="aceite"><input type="checkbox" id="cadAceite"><span>Li e aceito a <a href="privacidade.html" target="_blank" rel="noopener">política de privacidade</a>. Meu nome ou apelido e meu faturamento no jogo vão aparecer no ranking; a idade não aparece.</span></label>
     <p class="erro" id="cadErro" role="alert"></p>
     <button class="btn" id="btnCadastrar">Começar</button>
@@ -342,7 +353,15 @@ body:not(.jogando) .alerta{display:none}
 <button class="btn-entregas" id="btnEntregas" type="button" hidden>🛵 Entregas</button>
 <button class="btn-papo" id="btnPapo" type="button" aria-label="Papo da Adega">💬 Papo</button>
 
+<button class="btn-corretora" id="btnCorretora" type="button" hidden>📈 Corretora</button>
 <button class="btn-venda" id="btnVenda" type="button" hidden>💼 Vender a Adega</button>
+
+<section class="tela" id="telaCorretora" hidden>
+  <div class="caixa">
+    <div class="papo-topo"><h2 class="titulo" style="font-size:1.7rem">📈 Corretora da Adega</h2><button class="pilula" id="btnCorretoraFechar" type="button" aria-label="Fechar">✕</button></div>
+    <div id="corrConteudo"></div>
+  </div>
+</section>
 <button class="btn-missoes" id="btnMissoes" type="button" hidden><span id="missoesTxt">📅 Missões</span><span class="badge-missoes" id="missoesBadge" hidden>0</span></button>
 <div class="toast-missao" id="toastMissao" hidden role="status"></div>
 
@@ -470,7 +489,7 @@ body:not(.jogando) .alerta{display:none}
     <div id="cpNovo"></div>
     <h3>Meus cupons</h3>
     <ul class="lista-cp" id="cpLista"></ul>
-    <p class="txt" style="font-size:.82rem;color:var(--sub)">Regras: mostre o código no balcão na hora de pagar. Um cupom por compra, não cumulativo com outras promoções, válido por 30 dias e só em produtos não alcoólicos. Exclusivo para maiores de 18 anos.</p>
+    <p class="txt" style="font-size:.82rem;color:var(--sub)">Regras: mostre o código no balcão na hora de pagar. Um cupom por compra, não cumulativo com outras promoções, válido por 30 dias e só em produtos não alcoólicos.</p>
     <button class="btn amarelo" id="cpFechar">Voltar ao jogo</button>
   </div>
 </section>
@@ -1563,21 +1582,22 @@ function pedirNovoApelido(){
   $('#telaInicio').hidden=true; $('#telaCadastro').hidden=false; document.body.classList.remove('jogando');
   setTimeout(()=>{ $('#cadNome').focus(); $('#cadNome').select(); },50);
 }
-const msgCadastro={muitos_cadastros:'Muitos cadastros foram feitos desta internet hoje. Tente de novo amanhã.',apelido_em_uso:'Esse apelido já está em uso no ranking. Escolha outro.',idade_minima:'Desculpe, o jogo da Adega do Edu é exclusivo para maiores de 18 anos.',apelido_invalido:'Use um apelido de 2 a 20 letras.',senha_invalida_formato:'A senha precisa ter de 4 a 30 caracteres.'};
+$('#cadIdade').addEventListener('input',()=>{ const i=parseInt($('#cadIdade').value,10); $('#cadRespBox').hidden=!(i>=5&&i<12); });
+const msgCadastro={muitos_cadastros:'Muitos cadastros foram feitos desta internet hoje. Tente de novo amanhã.',apelido_em_uso:'Esse apelido já está em uso no ranking. Escolha outro.',autorizacao_responsavel:'Para menores de 12 anos, um responsável precisa autorizar o cadastro. Marque a caixa de autorização.',idade_invalida:'Digite uma idade válida.',apelido_invalido:'Use um apelido de 2 a 20 letras.',senha_invalida_formato:'A senha precisa ter de 4 a 30 caracteres.'};
 $('#btnCadastrar').addEventListener('click',async()=>{
   const btn=$('#btnCadastrar'); if(btn.disabled) return;
   const nome=$('#cadNome').value.replace(/\s+/g,' ').trim(), idade=parseInt($('#cadIdade').value,10), senha=$('#cadSenha').value, err=$('#cadErro');
   if(nome.length<2){ err.textContent='Digite um nome ou apelido com pelo menos 2 letras.'; $('#cadNome').focus(); return; }
   if((S.apelidosFalidos||[]).includes(nome.toLowerCase())){ err.textContent='Esse apelido faliu e não pode abrir outra adega. Escolha um apelido novo.'; $('#cadNome').focus(); return; }
-  if(!idade||idade<1||idade>120){ err.textContent='Digite a sua idade.'; $('#cadIdade').focus(); return; }
-  if(idade<18){ err.textContent=msgCadastro.idade_minima; return; }
+  if(!idade||idade<5||idade>120){ err.textContent='Digite a sua idade.'; $('#cadIdade').focus(); return; }
+  if(idade<12&&!$('#cadResp').checked){ err.textContent=msgCadastro.autorizacao_responsavel; return; }
   if(senha.length<4){ err.textContent='Crie uma senha com pelo menos 4 caracteres.'; $('#cadSenha').focus(); return; }
   if(!$('#cadAceite').checked){ err.textContent='Para continuar, aceite a política de privacidade.'; return; }
   let id=null, token=null;
   if(rankingAtivo()){
     btn.disabled=true; const txt=btn.textContent; btn.textContent='Criando cadastro…'; err.textContent='';
     try{
-      const r=await rpc('registrar_jogador_v2',{p_apelido:nome,p_idade:idade,p_senha:senha}); const l=Array.isArray(r)?r[0]:r;
+      const r=await rpc('registrar_jogador_v3',{p_apelido:nome,p_idade:idade,p_senha:senha,p_responsavel:idade<12&&$('#cadResp').checked}); const l=Array.isArray(r)?r[0]:r;
       if(l&&l.jogador_id){ id=l.jogador_id; token=l.chave; }
     }catch(e){
       const k=Object.keys(msgCadastro).find(c=>e.message.indexOf(c)>=0);
@@ -2476,13 +2496,13 @@ function domingoMaes(y){ return segundoDomingo(y,4); }
 const EVENTOS=[
   {id:'aniversario',nome:'Aniversário da Adega',ic:'🎂',bonus:0.25,ate:'09/12',dec:['baloes','luzes','faixa'],faixa:()=>(agoraSP().y-2023)+' ANOS DE ADEGA DO EDU!',cor:['#E8433A','#FFFFFF'],bal:[0xE8433A,0xFFC93C,0x2F8FD8,0x3CB371],ativo:t=>!!ANIV_ADEGA&&entreMD(t,ANIV_ADEGA[0],ANIV_ADEGA[1])},
   {id:'natal',nome:'Natal na Adega',ic:'🎄',bonus:0.20,ate:'25/12',dec:['arvore','luzes','faixa'],faixa:'FELIZ NATAL!',cor:['#C2362B','#FFFFFF'],ativo:t=>entreMD(t,1215,1225)},
-  {id:'reveillon',nome:'Réveillon na Adega',ic:'🥂',bonus:0.15,ate:'1º/01',dec:['baloes','luzes','faixa'],faixa:'FELIZ ANO NOVO!',cor:['#1A1A1A','#FFD54F'],bal:[0xFFD54F,0xE0E0E0,0xFFC93C,0xF5F5F5],ativo:t=>entreMD(t,1226,101)},
+  {id:'reveillon',nome:'Réveillon na Adega',ic:'🎆',bonus:0.15,ate:'1º/01',dec:['baloes','luzes','faixa'],faixa:'FELIZ ANO NOVO!',cor:['#1A1A1A','#FFD54F'],bal:[0xFFD54F,0xE0E0E0,0xFFC93C,0xF5F5F5],ativo:t=>entreMD(t,1226,101)},
   {id:'black',nome:'Black Friday',ic:'🛍️',bonus:0.10,fornecedor:0.7,ate:'30/11',dec:['faixa'],faixa:'BLACK FRIDAY · FORNECEDOR -30%',cor:['#111111','#FFC93C'],ativo:t=>entreMD(t,1120,1130)},
   {id:'carnaval',nome:'Carnaval na Adega',ic:'🎉',bonus:0.15,ate:'Quarta de Cinzas',dec:['confete','bandeirinhas','faixa'],faixa:'CARNAVAL NA ADEGA!',cor:['#9B5DE5','#FFFFFF'],ativo:t=>{ const c=CARNAVAL[t.y]; return !!c&&entreMD(t,c[0],c[1]); }},
   {id:'junina',nome:'Arraiá da Adega',ic:'🌽',bonus:0.10,ate:'30/06',dec:['bandeirinhas','faixa'],faixa:'ARRAIÁ DA ADEGA!',cor:['#C2862B','#FFFFFF'],ativo:t=>t.m===6},
   {id:'maes',nome:'Semana das Mães',ic:'💐',bonus:0.15,ate:'Dia das Mães',dec:['baloes','faixa'],faixa:'FELIZ DIA DAS MÃES!',cor:['#D63384','#FFFFFF'],bal:[0xF06AA7,0xC5A3E8,0xFFFFFF,0xF8BBD0],ativo:t=>{ const s=domingoMaes(t.y); return t.m===5&&t.d>=s-6&&t.d<=s; }},
   {id:'pais',nome:'Semana dos Pais',ic:'👔',bonus:0.10,ate:'Dia dos Pais',dec:['baloes','faixa'],faixa:'FELIZ DIA DOS PAIS!',cor:['#1E2E55','#FFFFFF'],bal:[0x2F8FD8,0x1E2E55,0xF5F5F5,0x78B8E8],ativo:t=>{ const s=domingoPais(t.y); return t.m===8&&t.d>=s-6&&t.d<=s; }},
-  {id:'sextou',nome:'Sextou na Adega',ic:'🍻',bonus:0.10,ate:'23h',dec:['luzes','faixa'],faixa:'SEXTOU NA ADEGA!',cor:['#1F4D3A','#FFC93C'],ativo:t=>t.wd==='Fri'&&t.h>=18&&t.h<23}
+  {id:'sextou',nome:'Sextou na Adega',ic:'🎶',bonus:0.10,ate:'23h',dec:['luzes','faixa'],faixa:'SEXTOU NA ADEGA!',cor:['#1F4D3A','#FFC93C'],ativo:t=>t.wd==='Fri'&&t.h>=18&&t.h<23}
 ];
 let evCache=null, evCacheT=0;
 function eventoAtual(){ const n=Date.now(); if(n-evCacheT>30000){ evCacheT=n; const t=agoraSP(); evCache=EVENTOS.find(e=>e.ativo(t))||null; } return evCache; }
@@ -2675,6 +2695,58 @@ setInterval(()=>{ if(S&&document.body.classList.contains('jogando')){ garantirMi
 
 setTimeout(()=>{ if(S){ garantirMissoes(); atualizarBtnMissoes(); } },2500);
 
+// ================= Corretora da Adega (parte 1 do IPO) =================
+function corretoraLiberadaLocal(){ return !!(S&&S.perfil&&S.perfil.id&&!S.falido&&IDS.every(id=>S.est[id].aberta&&S.est[id].nivel>=40)); }
+const MSG_CORR={corretora_bloqueada:'A corretora libera quando todos os setores da sua adega chegam ao nível 40.',valor_minimo:'O aporte mínimo é de 1 mil.',limite_diario:'Esse valor passa do seu limite de aportes de hoje.',jogador_falido:'Adegas falidas não podem investir.',jogador_invalido:'Sua conta não foi reconhecida. Entre de novo.'};
+let corrStatus=null;
+const lerValor=t=>Math.floor(Number(String(t).replace(/\D/g,''))||0);
+async function carregarCorretora(){
+  const b=$('#corrConteudo'); b.innerHTML='<p class="txt centro">Carregando…</p>';
+  try{ try{ await salvarNuvem(true); }catch(e){}
+    corrStatus=await rpc('corretora_status',{p_id:S.perfil.id,p_token:S.perfil.token}); renderCorretora(); }
+  catch(e){ b.innerHTML='<p class="txt centro">'+(/corretora_status/.test(e.message)?'A corretora ainda não foi instalada no servidor.':'Não foi possível abrir a corretora agora. Confira a internet.')+'</p>'; }
+}
+function renderCorretora(){
+  const C=corrStatus, b=$('#corrConteudo'); b.innerHTML='';
+  const add=h=>{ const d=document.createElement('div'); d.innerHTML=h; while(d.firstChild) b.appendChild(d.firstChild); };
+  add(`<div class="corr-saldo"><span>Saldo na corretora</span><b>💵 ${fmt(Number(C.saldo))}</b></div>`);
+  add('<p class="txt">A corretora é onde fica o dinheiro que você separa para <b>investir</b>. Em breve, você poderá comprar ações das adegas de outros jogadores quando elas abrirem capital na bolsa (IPO).</p>');
+  if(!C.liberado){ add(`<p class="txt"><b>🔒 Libera quando todos os setores da sua adega chegarem ao nível 40.</b> Seu setor mais baixo está no nível ${C.menor_nivel}.</p>`); return; }
+  const disp=Number(C.disponivel_hoje), lim=Number(C.limite_dia);
+  const box=document.createElement('div'); box.className='corr-aporte';
+  box.innerHTML=`<div class="missao-txt">Aportar do caixa da adega</div>
+    <div class="missao-info">Limite de hoje: ${fmt(disp)} de ${fmt(lim)} · seu caixa: ${fmt(S.din)}</div>
+    <div class="missao-barra"><i style="width:${Math.min(100,100*(lim-disp)/lim)}%"></i></div>
+    <input id="corrValor" inputmode="numeric" autocomplete="off" placeholder="Valor do aporte">
+    <div class="corr-rapidos"></div>`;
+  b.appendChild(box);
+  const inp=box.querySelector('#corrValor'), rap=box.querySelector('.corr-rapidos');
+  inp.addEventListener('input',()=>{ const v=lerValor(inp.value); inp.value=v?v.toLocaleString('pt-BR'):''; });
+  const maxPerm=()=>Math.max(0,Math.min(Math.floor(S.din),disp));
+  [['10%',0.1],['25%',0.25],['50%',0.5],['Máximo',1]].forEach(([t,f])=>{ const x=document.createElement('button'); x.type='button'; x.className='pilula'; x.textContent=t;
+    x.addEventListener('click',()=>{ const v=Math.floor(maxPerm()*f); inp.value=v?v.toLocaleString('pt-BR'):''; }); rap.appendChild(x); });
+  const bt=document.createElement('button'); bt.type='button'; bt.className='btn'; bt.textContent='Aportar'; bt.disabled=!disp;
+  bt.addEventListener('click',async()=>{
+    const v=lerValor(inp.value);
+    if(v<1000) return alert('O aporte mínimo é de 1 mil.');
+    if(v>S.din) return alert('Você não tem esse dinheiro no caixa da adega.');
+    if(v>disp) return alert(MSG_CORR.limite_diario);
+    bt.disabled=true;
+    try{ await rpc('corretora_aportar',{p_id:S.perfil.id,p_token:S.perfil.token,p_valor:v});
+      S.din-=v; salvar(); atualizarHUD(true); SOM.coletar(); toastMissao('💼 Aporte de '+fmt(v)+' feito na corretora!'); await carregarCorretora(); }
+    catch(e){ const k=Object.keys(MSG_CORR).find(x=>e.message.indexOf(x)>=0); alert(k?MSG_CORR[k]:'Não foi possível fazer o aporte agora. Confira a internet.'); bt.disabled=false; }
+  });
+  box.appendChild(bt);
+  add('<p class="txt" style="font-size:.82rem;color:var(--sub)">O limite diário é de 5% de todo o faturamento da sua adega (mínimo de 100 mil). Por enquanto, o dinheiro vai da adega para a corretora; o resgate chega junto com os lucros e dividendos das ações.</p>');
+  add('<p class="txt" style="margin-top:8px"><b>Extrato</b></p>');
+  if(!C.extrato.length) add('<p class="txt" style="color:var(--sub)">Nenhuma movimentação ainda.</p>');
+  C.extrato.forEach(e=>add(`<div class="stat"><span>${e.descricao}<br><small>${new Date(e.criado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</small></span><b>+${fmt(Number(e.valor))}</b></div>`));
+  add('<p class="txt" style="font-size:.78rem;color:var(--sub);margin-top:8px">Simulação educativa com dinheiro fictício do jogo. Não é recomendação de investimento.</p>');
+}
+function abrirCorretora(){ $('#telaCorretora').hidden=false; SOM.abrir(); carregarCorretora(); }
+$('#btnCorretora').addEventListener('click',abrirCorretora);
+$('#btnCorretoraFechar').addEventListener('click',()=>{ $('#telaCorretora').hidden=true; });
+
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
   'Peguei meu cupom! 🎟️','Minha adega tá bombando! 🔥','Estoque cheio, tudo certo! 📦','Alguém tem uma dica? 🤔','Valeu, pessoal! 🙏','Rumo ao nível 25! 🚀',
@@ -2682,7 +2754,7 @@ const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 m
 const MSG_PAPO={devagar:'Calma! Espere alguns segundos antes de enviar de novo.',sem_links:'Não é permitido enviar links, @, telefones ou redes sociais.',
   silenciado:'Você está silenciado pela moderação e não pode enviar mensagens agora.',muitas_pendentes:'Você já tem 3 ideias aguardando aprovação. Espere a Adega revisar.',
   texto_invalido:'Escreva uma mensagem (ideias: de 5 a 280 letras; chat: até 150).',chat_desligado:'O chat livre ainda não está aberto.',
-  fora_horario:'O chat livre está fora do horário de funcionamento.',chat_bloqueado:'Complete 8 tarefas para liberar o chat livre.'};
+  fora_horario:'O chat livre está fora do horário de funcionamento.',chat_bloqueado:'Complete 8 tarefas para liberar o chat livre.',chat_maiores:'O chat livre é só para maiores de 18 anos.'};
 let abaPapo='rapido', dadosPapo=null, tPapo=0, chaveRodape='';
 const papoOnline=()=>rankingAtivo()&&S.perfil&&S.perfil.id;
 const horaPapo=t=>{ const d=new Date(t); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
@@ -2725,7 +2797,7 @@ function renderListaPapo(){
 }
 function renderRodapePapo(){
   const R=$('#papoRodape'), d=dadosPapo, s=d&&d.status;
-  const chave=abaPapo+'|'+(s?[s.ligado,s.aberto,s.tarefa>=s.minimo,!!s.silenciado_ate,!!S.regrasChat,d.pendentes].join(','):'');
+  const chave=abaPapo+'|'+(s?[s.menor,s.ligado,s.aberto,s.tarefa>=s.minimo,!!s.silenciado_ate,!!S.regrasChat,d.pendentes].join(','):'');
   if(chave===chaveRodape) return; chaveRodape=chave; R.innerHTML='';
   if(!d) return;
   if(abaPapo==='rapido'){
@@ -2739,6 +2811,7 @@ function renderRodapePapo(){
     $('#papoEnviarIdeia').addEventListener('click',async()=>{ const t=$('#papoIdeia').value; if(await acaoPapo('papo_enviar_ideia',{p_texto:t},'Ideia enviada! Ela aparece aqui depois que a Adega aprovar. 💡')){ $('#papoIdeia').value=''; } });
   }
   if(abaPapo==='chat'){
+    if(s.menor){ R.innerHTML='<p class="papo-nota">🧒 O chat livre é só para maiores de 18 anos. Você pode usar as frases rápidas e mandar suas ideias para a Adega!</p>'; return; }
     if(!s.ligado) return;
     let bloq='';
     if(!s.aberto) bloq=`⏰ O chat funciona das ${s.inicio}h às ${s.fim}h.`;
@@ -2845,6 +2918,7 @@ function voarNotas(p,n){
 function atualizarHUD(pulo){
   const be=document.getElementById('btnEntregas'); if(be) be.hidden=!entregasLiberadas();
   const bv=document.getElementById('btnVenda'); if(bv) bv.hidden=!vendaLiberada();
+  const bc=document.getElementById('btnCorretora'); if(bc) bc.hidden=!corretoraLiberadaLocal();
   atualizarBtnMissoes();
   $('#valDin').textContent=fmt(S.din);
   if(pulo){const e=$('#dinheiro');e.classList.remove('pulo');void e.offsetWidth;e.classList.add('pulo');}
