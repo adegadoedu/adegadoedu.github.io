@@ -283,6 +283,16 @@ body:not(.jogando) .btn-papo{display:none}
 .alerta button:disabled{filter:grayscale(1);opacity:.7}
 body:not(.jogando) .alerta{display:none}
 @media (prefers-reduced-motion: reduce){ .selo .seta,.tarefa button,.selo.fechado.pode,.pop{animation-duration:.01s;animation-iteration-count:1} .painel{transition:none} }
+
+/* barra do topo compacta em celulares (fica no fim para ter prioridade) */
+@media (max-width:440px){
+  .hud .linha-hud{gap:4px}
+  .hud .linha-hud .pilula,.hud #btnRanking,.hud #btnPersonagem,.hud #btnMusica,.hud #btnSair{padding:3px 6px;font-size:1rem}
+  .hud #dinheiro{font-size:1.05rem;padding:3px 8px 3px 6px;gap:4px}
+  .hud #dinheiro .tk{display:none}
+  .hud #taxa{font-size:.68rem;padding:3px 5px}
+}
+@media (max-width:345px){ .hud #taxa{display:none} }
 </style>
 </head>
 <body>
@@ -294,6 +304,7 @@ body:not(.jogando) .alerta{display:none}
     <button class="pilula" id="btnPersonagem" aria-label="Meu personagem">👤</button>
     <div class="pilula" id="dinheiro" role="button" tabindex="0" aria-label="Trocar dinheiro por cupom de desconto"><span id="icDin"></span><span id="valDin">0</span><span class="tk" aria-hidden="true">🎟️</span></div>
     <div class="pilula" id="taxa">0/min</div>
+    <button class="pilula" id="btnMusica" type="button" aria-label="Música">🔊</button>
     <button class="pilula" id="btnSair" aria-label="Sair do jogo">🚪</button>
   </div>
   <div class="tarefa" id="tarefa"></div>
@@ -2970,6 +2981,118 @@ function atualizarOnibus(dt){
   o.ativo=true; o.faixa=f; o.dir=F.dir; o.vel=rnd(5.5,7); o.parou=false; o.estado='andando';
   o.g.position.set(-F.dir*19,0,F.z); o.g.rotation.y=F.dir>0?0:Math.PI; o.g.visible=true;
 }
+
+// ================= Música de fundo (chiptune original, composta no próprio jogo) =================
+const ESCALAS_MUS={maior:[0,2,4,5,7,9,11],menor:[0,2,3,5,7,8,10],mixo:[0,2,4,5,7,9,10]};
+const TRILHAS={
+  dia:      {seed:7,   bpm:128, root:60, modo:'maior', prog:[0,5,3,4], bx:'oct',   k:'x...x...x...x...', s:'....x.......x...', h:'x.x.x.x.x.x.x.x.', arp:2, dens:0.55},
+  natal:    {seed:25,  bpm:108, root:67, modo:'maior', prog:[0,3,0,4], bx:'raiz',  k:'x.......x.......', s:'....x.......x...', h:'xxxxxxxxxxxxxxxx', arp:2, dens:0.45, sinos:true},
+  reveillon:{seed:31,  bpm:136, root:62, modo:'maior', prog:[0,4,5,3], bx:'oct',   k:'x...x...x...x...', s:'....x.......x.x.', h:'x.xxx.xxx.xxx.xx', arp:1, dens:0.6},
+  carnaval: {seed:12,  bpm:140, root:65, modo:'maior', prog:[0,4,4,0], bx:'marcha',k:'x.......x.......', s:'..x...x...x...xx', h:'x.x.x.x.x.x.x.x.', arp:2, dens:0.6},
+  junina:   {seed:6,   bpm:116, root:65, modo:'mixo',  prog:[0,3,4,0], bx:'baiao', k:'x..x....x..x....', s:'....x.......x...', h:'..x...x...x...x.', arp:4, dens:0.5, sanfona:true},
+  aniversario:{seed:3, bpm:124, root:64, modo:'maior', prog:[0,3,4,0], bx:'oct',   k:'x...x...x...x...', s:'....x.......x...', h:'x.x.x.x.x.x.x.x.', arp:1, dens:0.55},
+  black:    {seed:66,  bpm:118, root:57, modo:'menor', prog:[0,5,3,4], bx:'funk',  k:'x..x..x...x.....', s:'....x.......x...', h:'xxxxxxxxxxxxxxxx', arp:2, dens:0.5},
+  maes:     {seed:14,  bpm:100, root:65, modo:'maior', prog:[0,3,5,4], bx:'raiz',  k:'x.......x.......', s:'........x.......', h:'x...x...x...x...', arp:2, dens:0.4},
+  pais:     {seed:41,  bpm:104, root:62, modo:'maior', prog:[0,4,5,3], bx:'raiz',  k:'x.......x.......', s:'....x.......x...', h:'x...x...x...x...', arp:2, dens:0.42},
+  sextou:   {seed:88,  bpm:132, root:69, modo:'mixo',  prog:[0,6,3,0], bx:'oct',   k:'x...x...x...x...', s:'....x.......x...', h:'.x.x.x.x.x.x.x.x', arp:1, dens:0.6}
+};
+const BAIXOS={oct:[0,null,null,null,7,null,null,null,0,null,null,null,7,null,0,null], raiz:[0,null,null,null,null,null,null,null,4,null,null,null,null,null,null,null],
+  marcha:[0,null,null,null,4,null,null,null,0,null,null,null,4,null,null,null], baiao:[0,null,null,4,null,null,7,null,0,null,null,4,null,null,7,null],
+  funk:[0,null,null,0,null,null,7,null,null,0,null,null,5,null,6,null]};
+function rngMus(s){ return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+const notaGrau=(cfg,grau)=>{ const e=ESCALAS_MUS[cfg.modo], n=e.length, o=Math.floor(grau/n), i=((grau%n)+n)%n; return cfg.root+12*o+e[i]; };
+function comporTrilha(cfg){
+  const r=rngMus(cfg.seed), barras=cfg.prog.length;
+  const frase=(fim)=>{
+    const out=new Array(barras*16).fill(null); let g=cfg.prog[0]+7;
+    for(let b=0;b<barras;b++){
+      const acd=cfg.prog[b]; let s=0;
+      while(s<16){
+        const dur=r()<cfg.dens?2:(r()<0.5?4:1);
+        if(r()>0.18||s===0){
+          if(s%4===0){ const alvos=[acd,acd+2,acd+4].map(x=>x+7*Math.round((g-x)/7)); g=alvos.reduce((a,x)=>Math.abs(x-g)<Math.abs(a-g)?x:a); }
+          else g+=[-2,-1,1,1,2,-1][Math.floor(r()*6)];
+          g=Math.max(3,Math.min(13,g)); out[b*16+s]={g,d:Math.min(dur,16-s)};
+        }
+        s+=dur;
+      }
+    }
+    if(fim){ const ult=(barras-1)*16; for(let i=ult;i<ult+16;i++) out[i]=null; out[ult]={g:cfg.prog[0]+7,d:8}; }
+    return out;
+  };
+  const A=frase(false), B=frase(false), Af=frase(true);
+  const A2=A.slice(); const ult=(barras-1)*16; for(let i=ult;i<ult+16;i++) A2[i]=Af[i];
+  return [A,A2,B,A2];
+}
+const MUS={ctx:null,master:null,pulso:null,pulso12:null,ruido:null,nivel:2,trilha:'',seq:null,cfg:null,passo:0,prox:0,timer:null,iniciada:false};
+const VOL_MUS=[0,0.045,0.09];                       // mudo, baixo, normal (mais baixo que os efeitos)
+const ICONE_MUS=['🔇','🔉','🔊'];
+try{ const v=localStorage.getItem('adegaEdu.musica'); if(v!==null) MUS.nivel=Math.max(0,Math.min(2,+v)); }catch(e){}
+function ondaPulso(ctx,duty){ const n=32, re=new Float32Array(n), im=new Float32Array(n); for(let k=1;k<n;k++) im[k]=(2/(k*Math.PI))*Math.sin(k*Math.PI*duty); return ctx.createPeriodicWave(re,im); }
+function iniciarMusica(){
+  if(MUS.iniciada) return;
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume();
+    const c=MUS.ctx=ac; MUS.master=c.createGain(); MUS.master.gain.value=VOL_MUS[MUS.nivel]; MUS.master.connect(c.destination);
+    MUS.pulso=ondaPulso(c,0.25); MUS.pulso12=ondaPulso(c,0.125);
+    const b=c.createBuffer(1,c.sampleRate*0.5,c.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; MUS.ruido=b;
+    MUS.iniciada=true; trocarTrilha(true);
+    MUS.timer=setInterval(agendarMusica,25);
+  }catch(e){}
+}
+function notaMus(freq,t,dur,onda,vol,vib){
+  const c=MUS.ctx, o=c.createOscillator(), g=c.createGain();
+  if(typeof onda==='string') o.type=onda; else o.setPeriodicWave(onda);
+  o.frequency.setValueAtTime(freq,t);
+  if(vib){ const l=c.createOscillator(), lg=c.createGain(); l.frequency.value=5.5; lg.gain.value=freq*0.012; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t+dur+0.05); }
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+0.008); g.gain.setValueAtTime(vol*0.8,t+dur*0.6); g.gain.linearRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(MUS.master); o.start(t); o.stop(t+dur+0.02);
+}
+function batida(tipo,t){
+  const c=MUS.ctx;
+  if(tipo==='k'){ const o=c.createOscillator(), g=c.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(40,t+0.12); g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.14); o.connect(g); g.connect(MUS.master); o.start(t); o.stop(t+0.15); return; }
+  const s=c.createBufferSource(); s.buffer=MUS.ruido; const f=c.createBiquadFilter(), g=c.createGain();
+  if(tipo==='s'){ f.type='bandpass'; f.frequency.value=1800; g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.12); }
+  else { f.type='highpass'; f.frequency.value=MUS.cfg&&MUS.cfg.sinos?9000:7000; g.gain.setValueAtTime(MUS.cfg&&MUS.cfg.sinos?0.22:0.16,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.04); }
+  s.connect(f); f.connect(g); g.connect(MUS.master); s.start(t); s.stop(t+0.15);
+}
+const hzMus=m=>440*Math.pow(2,(m-69)/12);
+function tocarPasso(passo,t){
+  const cfg=MUS.cfg, seq=MUS.seq, barras=cfg.prog.length, porSecao=barras*16;
+  const sec=Math.floor(passo/porSecao)%seq.length, i=passo%porSecao, barra=Math.floor(i/16), st=i%16, acorde=cfg.prog[barra];
+  const dPasso=60/cfg.bpm/4;
+  const n=seq[sec][i];
+  if(n) notaMus(hzMus(notaGrau(cfg,n.g)+12),t,n.d*dPasso*0.95,cfg.sanfona?MUS.pulso:MUS.pulso,cfg.sanfona?0.16:0.14,cfg.sanfona);
+  const bx=BAIXOS[cfg.bx][st]; if(bx!==null&&bx!==undefined) notaMus(hzMus(notaGrau(cfg,acorde+bx)-24),t,dPasso*1.8,'triangle',0.32);
+  if(st%cfg.arp===0){ const tons=[0,2,4,7], k=(st/cfg.arp)%4; notaMus(hzMus(notaGrau(cfg,acorde+tons[k])+(cfg.sinos?24:12)),t,dPasso*0.9,MUS.pulso12,cfg.sinos?0.07:0.05); }
+  if(cfg.k[st]==='x') batida('k',t); if(cfg.s[st]==='x') batida('s',t); if(cfg.h[st]==='x') batida('h',t);
+}
+function agendarMusica(){
+  if(!MUS.iniciada||!MUS.cfg||MUS.ctx.state!=='running') return;
+  const dPasso=60/MUS.cfg.bpm/4;
+  if(MUS.prox<MUS.ctx.currentTime-0.25) MUS.prox=MUS.ctx.currentTime+0.05;   // ficou muito para trás: retoma sem tocar notas atrasadas
+  while(MUS.prox<MUS.ctx.currentTime+0.4){ if(MUS.nivel>0) tocarPasso(MUS.passo,MUS.prox); MUS.passo++; MUS.prox+=dPasso; }
+}
+function trilhaDesejada(){ const ev=typeof eventoAtual==='function'?eventoAtual():null; return ev&&TRILHAS[ev.id]?ev.id:'dia'; }
+function trocarTrilha(imediato){
+  const id=trilhaDesejada(); if(id===MUS.trilha&&!imediato) return;
+  const aplicar=()=>{ MUS.trilha=id; MUS.cfg=TRILHAS[id]; MUS.seq=comporTrilha(MUS.cfg); MUS.passo=0; MUS.prox=0; if(MUS.master) MUS.master.gain.setTargetAtTime(VOL_MUS[MUS.nivel],MUS.ctx.currentTime,0.3); };
+  if(imediato||!MUS.master){ aplicar(); return; }
+  MUS.master.gain.setTargetAtTime(0.0001,MUS.ctx.currentTime,0.25); setTimeout(aplicar,900);
+}
+function atualizarBotaoMusica(){ const b=$('#btnMusica'); if(b){ b.textContent=ICONE_MUS[MUS.nivel]; b.setAttribute('aria-label','Música: '+['desligada','baixa','normal'][MUS.nivel]); } }
+$('#btnMusica').addEventListener('click',e=>{
+  e.stopPropagation(); iniciarMusica();
+  MUS.nivel=(MUS.nivel+2)%3;                                   // normal → baixo → mudo → normal
+  try{ localStorage.setItem('adegaEdu.musica',String(MUS.nivel)); }catch(err){}
+  if(MUS.master) MUS.master.gain.setTargetAtTime(VOL_MUS[MUS.nivel],MUS.ctx.currentTime,0.08);
+  atualizarBotaoMusica();
+});
+atualizarBotaoMusica();
+// os celulares só deixam tocar som depois do primeiro toque do jogador
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ if(!MUS.iniciada) iniciarMusica(); else if(MUS.ctx.state==='suspended'&&!document.hidden) MUS.ctx.resume(); },{passive:true}));
+document.addEventListener('visibilitychange',()=>{ if(!MUS.ctx) return; if(document.hidden) MUS.ctx.suspend(); else MUS.ctx.resume(); });
+setInterval(()=>{ if(MUS.iniciada) trocarTrilha(false); },5000);
 
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
