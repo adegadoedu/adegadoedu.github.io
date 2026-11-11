@@ -1460,7 +1460,7 @@ const G={g:gerente,posto:POSTO_GERENTE.clone(),quem:'gerente',caminho:[],vel:2.4
 const figuraCaixa=()=>S.operadores>0?atendentes[0]:edus[0];
 const caixaAusente=()=>G.estado!=='livre'&&G.quem==='caixa';
 function iniciarRecebimento(pessoaQueRecebe,quem){
-  G.g=pessoaQueRecebe; G.quem=quem; G.posto=pessoaQueRecebe.position.clone(); G.passo=0;
+  G.g=pessoaQueRecebe; G.quem=quem; G.posto=pessoaQueRecebe.position.clone(); G.passo=0; G.tipo='fornecedor';
   pessoaQueRecebe.userData.corpo.add(caixaGer); caixaGer.visible=false;
   G.estado='indoCaminhao'; G.caminho=rota(pessoaQueRecebe.position,PORTA).concat([FORA_PORTA.clone(),CALCADA_PT.clone(),DESCARGA.clone()]);
 }
@@ -1486,6 +1486,7 @@ function proximoSetorGerente(){
 }
 function atualizarGerente(dt){
   if(G.estado==='livre') return;
+  if(atualizarRecebimentoVan(dt)) return;
   const p=G.g, u=p.userData;
   if(G.estado==='indoCaminhao'){ if(mover(G,dt)){ G.estado='pegandoCaixas'; G.t=0.9; p.rotation.y=0; } }
   else if(G.estado==='pegandoCaixas'){
@@ -1500,7 +1501,7 @@ function atualizarGerente(dt){
 }
 function atualizarFornecedor(dt){
   const F=FORN;
-  if(F.estado==='ocioso'){ if(F.fila.length&&!onibusNaRua()){ F.estado='chegando'; caminhao.visible=true; caminhao.position.set(-16,0,Z_RUA); } }
+  if(F.estado==='ocioso'){ if(F.fila.length&&!onibusNaRua()&&!vanNaRua()){ F.estado='chegando'; caminhao.visible=true; caminhao.position.set(-16,0,Z_RUA); } }
   else if(F.estado==='chegando'||F.estado==='saindo'){
     caminhao.position.x+=7*dt; rodas.forEach(r=>r.rotation.y-=dt*12);
     if(F.estado==='chegando'&&caminhao.position.x>=PARADA_X){ caminhao.position.x=PARADA_X; F.estado='parado'; }
@@ -2277,15 +2278,60 @@ function atualizarPdr(dt){
     if(pdrPodeLiberar()){ p.liberado=true; salvar(); atualizarCaixasPdr(); pop(estantePdr.position.clone().setY(2.5),'📦 Ponto de Retirada liberado!','grande'); SOM.marco(); setTimeout(abrirPdr,600); }
     return;
   }
-  if(VAN.estado==='ocioso'){ VAN.t-=dt; if(VAN.t<=0&&!onibusNaRua()){ const at=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]); VAN.parceiro=pega(at); pintarVan(VAN.parceiro); VAN.estado='chegando'; vanPdr.visible=true; vanPdr.position.set(-16,0,Z_VAN); } }
+  if(VAN.estado==='ocioso'){ VAN.t-=dt; if(VAN.t<=0&&!onibusNaRua()&&FORN.estado==='ocioso'&&!FORN.fila.length){ const at=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]); VAN.parceiro=pega(at); pintarVan(VAN.parceiro); VAN.estado='chegando'; vanPdr.visible=true; vanPdr.position.set(-16,0,Z_VAN); } }
   else if(VAN.estado==='chegando'||VAN.estado==='saindo'){
     vanPdr.position.x+=7*dt; rodasVan.forEach(r=>r.rotation.y-=dt*12);
-    if(VAN.estado==='chegando'&&vanPdr.position.x>=PARADA_VAN){ vanPdr.position.x=PARADA_VAN; VAN.estado='parado'; VAN.t=2.2; descarregarVan(); }
+    if(VAN.estado==='chegando'&&vanPdr.position.x>=PARADA_VAN){ vanPdr.position.x=PARADA_VAN; VAN.estado='parado'; VAN.n=2+Math.floor(Math.random()*4)+(VAN.parceiro==='amazon'?1:0); }
     if(VAN.estado==='saindo'&&vanPdr.position.x>18){ vanPdr.visible=false; VAN.estado='ocioso'; const nAt=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]).length; VAN.t=rnd(35,65)/(1+(nAt-1)*0.35); }
   }
-  else if(VAN.estado==='parado'){ VAN.t-=dt; if(VAN.t<=0) VAN.estado='saindo'; }
+  else if(VAN.estado==='parado'&&G.estado==='livre'){
+    if(capPdr()-p.estante<=0){ pop(vanPdr.position.clone().setY(3.0),'Estante cheia! '+VAN.n+' pacotes recusados','ruim'); VAN.estado='saindo'; }
+    else { const cand=[eduDono]; if(S.gerente) cand.push(gerente);
+      cand.sort((a,b)=>a.position.distanceTo(VAN_PT)-b.position.distanceTo(VAN_PT));
+      iniciarRecebimentoVan(cand[0],cand[0]===gerente?'gerente':'edu'); VAN.estado='aguardando'; }
+  }
   tSpawnPdr-=dt;
   if(tSpawnPdr<=0){ tSpawnPdr=rnd(4,9); if(p.estante-pdrEmRota>0) novoClienteRetirada(); }
+}
+// ---------- Recebimento da van: o Edu ou o gerente busca os pacotes e guarda na estante ----------
+const VAN_PT=new THREE.Vector3(-0.45,0,9.95), VAN_CALCADA=new THREE.Vector3(-0.6,0,7.6), PDR_ENTREGA=new THREE.Vector3(-3.05,0,-3.5);
+function vanNaRua(){ return VAN.estado!=='ocioso'; }
+function iniciarRecebimentoVan(p,quem){
+  G.g=p; G.quem=quem; G.posto=p.position.clone(); G.passo=0; G.tipo='van';
+  p.userData.corpo.add(caixaGer); caixaGer.visible=false;
+  G.estado='indoVan'; G.caminho=rota(p.position,PORTA).concat([FORA_PORTA.clone(),VAN_CALCADA.clone(),VAN_PT.clone()]);
+}
+function pegarPacotesVan(){
+  const p=PDR(), k=VAN.parceiro, n=VAN.n||3, ac=Math.min(n,Math.max(0,capPdr()-p.estante));
+  if(n>ac) setTimeout(()=>pop(vanPdr.position.clone().setY(3.0),'Estante cheia! '+(n-ac)+' pacote'+(n-ac>1?'s':'')+' recusado'+(n-ac>1?'s':''),'ruim'),300);
+  return {n:ac,k};
+}
+function guardarPacotes(r){
+  if(!r||!r.n) return;
+  const p=PDR(), v=r.n*taxaPdr(r.k);
+  p.estante=Math.min(capPdr(),p.estante+r.n); p.recebidos+=r.n; p.ganho+=v; S.din+=v; S.total+=v; registrarGanho(v);
+  pop(estantePdr.position.clone().setY(2.5),'📦 +'+r.n+' '+PARCEIROS[r.k].nome+' · +'+fmt(v),'grande'); SOM.coletar(); atualizarHUD(true); atualizarCaixasPdr();
+}
+function voltarDoRecebimentoVan(){
+  caixaGer.visible=false; G.tipo=null;
+  if(G.quem==='edu') G.estado='livre';
+  else { G.estado='voltandoPosto'; G.caminho=rota(G.g.position,G.posto).concat([G.posto.clone()]); }
+}
+function atualizarRecebimentoVan(dt){
+  if(G.tipo!=='van') return false;
+  const p=G.g, u=p.userData;
+  if(G.estado==='indoVan'){ if(mover(G,dt)){ G.estado='pegandoPacotes'; G.t=0.9; p.rotation.y=0; } }
+  else if(G.estado==='pegandoPacotes'){
+    G.t-=dt; u.corpo.rotation.x=Math.sin(G.t*8)*0.15;
+    if(G.t<=0){ u.corpo.rotation.x=0; G.pacotes=pegarPacotesVan(); caixaGer.visible=G.pacotes.n>0; VAN.estado='saindo';
+      if(G.pacotes.n){ pop(p.position.clone().setY(2.1),'📦 '+G.pacotes.n+' pacote'+(G.pacotes.n>1?'s':'')+' recebido'+(G.pacotes.n>1?'s':''),''); G.estado='voltandoLojaVan'; G.caminho=[VAN_CALCADA.clone(),FORA_PORTA.clone(),PORTA.clone()]; }
+      else voltarDoRecebimentoVan(); }
+  }
+  else if(G.estado==='voltandoLojaVan'){ if(mover(G,dt)){ G.estado='indoEstante'; G.caminho=rota(p.position,PDR_ENTREGA).concat([PDR_ENTREGA.clone()]); } }
+  else if(G.estado==='indoEstante'){ if(mover(G,dt)){ G.estado='guardando'; G.t=0.9; p.rotation.y=Math.PI; } }
+  else if(G.estado==='guardando'){ G.t-=dt; u.corpo.rotation.x=Math.sin(G.t*8)*0.15; if(G.t<=0){ u.corpo.rotation.x=0; guardarPacotes(G.pacotes); G.pacotes=null; voltarDoRecebimentoVan(); } }
+  else return false;
+  return true;
 }
 // ---------- Clientes que vêm retirar ----------
 function novoClienteRetirada(){
