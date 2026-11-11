@@ -1500,7 +1500,7 @@ function atualizarGerente(dt){
 }
 function atualizarFornecedor(dt){
   const F=FORN;
-  if(F.estado==='ocioso'){ if(F.fila.length){ F.estado='chegando'; caminhao.visible=true; caminhao.position.set(-16,0,Z_RUA); } }
+  if(F.estado==='ocioso'){ if(F.fila.length&&!onibusNaRua()){ F.estado='chegando'; caminhao.visible=true; caminhao.position.set(-16,0,Z_RUA); } }
   else if(F.estado==='chegando'||F.estado==='saindo'){
     caminhao.position.x+=7*dt; rodas.forEach(r=>r.rotation.y-=dt*12);
     if(F.estado==='chegando'&&caminhao.position.x>=PARADA_X){ caminhao.position.x=PARADA_X; F.estado='parado'; }
@@ -2277,7 +2277,7 @@ function atualizarPdr(dt){
     if(pdrPodeLiberar()){ p.liberado=true; salvar(); atualizarCaixasPdr(); pop(estantePdr.position.clone().setY(2.5),'📦 Ponto de Retirada liberado!','grande'); SOM.marco(); setTimeout(abrirPdr,600); }
     return;
   }
-  if(VAN.estado==='ocioso'){ VAN.t-=dt; if(VAN.t<=0){ const at=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]); VAN.parceiro=pega(at); pintarVan(VAN.parceiro); VAN.estado='chegando'; vanPdr.visible=true; vanPdr.position.set(-16,0,Z_VAN); } }
+  if(VAN.estado==='ocioso'){ VAN.t-=dt; if(VAN.t<=0&&!onibusNaRua()){ const at=Object.keys(PARCEIROS).filter(k=>p.parceiros[k]); VAN.parceiro=pega(at); pintarVan(VAN.parceiro); VAN.estado='chegando'; vanPdr.visible=true; vanPdr.position.set(-16,0,Z_VAN); } }
   else if(VAN.estado==='chegando'||VAN.estado==='saindo'){
     vanPdr.position.x+=7*dt; rodasVan.forEach(r=>r.rotation.y-=dt*12);
     if(VAN.estado==='chegando'&&vanPdr.position.x>=PARADA_VAN){ vanPdr.position.x=PARADA_VAN; VAN.estado='parado'; VAN.t=2.2; descarregarVan(); }
@@ -2792,6 +2792,139 @@ $('#guiaCorrProx').addEventListener('click',()=>{ if(guiaPasso<GUIA_CORR.length-
 $('#guiaCorrVoltar').addEventListener('click',()=>{ if(guiaPasso>0){ guiaPasso--; renderGuiaCorr(); } });
 $('#guiaCorrFechar').addEventListener('click',fecharGuiaCorr);
 
+// ================= Ônibus circulares na rua =================
+const LINHAS_ONIBUS=[
+  {cor:'verde',letreiro:'CIRCULAR 05',num:'1877'},
+  {cor:'verde',letreiro:'CIRCULAR 06',num:'881'},
+  {cor:'vermelho',letreiro:'C4 S.JUDAS',num:'677'},
+  {cor:'vermelho',letreiro:'CIRCULAR 04',num:'710'}
+];
+const COR_ONIBUS={verde:{faixa:'#6DBE45',faixa2:'#3E8E2A',saia:'#6DBE45'},vermelho:{faixa:'#E2382B',faixa2:'#9A9A9A',saia:'#E2382B'}};
+function ledTexto(c,txt,x,y,w,h,tam){
+  c.fillStyle='#111'; c.fillRect(x,y,w,h);
+  c.fillStyle='#FFB300'; c.font=`bold ${tam}px "Courier New", monospace`; c.textAlign='center'; c.textBaseline='middle';
+  c.shadowColor='#FF8F00'; c.shadowBlur=6; c.fillText(txt,x+w/2,y+h/2+1); c.shadowBlur=0;
+}
+// lateral: desenhada com a frente do ônibus à direita (frenteDireita) ou à esquerda
+function texLateralOnibus(l,frenteDireita){
+  const C=COR_ONIBUS[l.cor];
+  return texCanvas(1024,256,(c)=>{
+    const X=x=>frenteDireita?x:1024-x;                       // x medido da traseira (0) para a frente (1024)
+    const ret=(x0,y,x1,h,cor)=>{ c.fillStyle=cor; const a=X(x0),b=X(x1); c.fillRect(Math.min(a,b),y,Math.abs(b-a),h); };
+    const poli=(pts,cor)=>{ c.fillStyle=cor; c.beginPath(); pts.forEach(([x,y],i)=>i?c.lineTo(X(x),y):c.moveTo(X(x),y)); c.closePath(); c.fill(); };
+    c.fillStyle='#F6F6F2'; c.fillRect(0,0,1024,256);
+    // faixa das janelas e colunas
+    ret(30,44,1000,92,'#26323B');
+    for(let x=140;x<900;x+=118) ret(x,44,x+10,92,'#B9C4CC');
+    ret(880,44,1000,92,'#1E2A31');                             // para-brisa lateral
+    ledTexto(c,l.letreiro,Math.min(X(700),X(870)),52,170,30,20); // letreiro lateral
+    // porta da frente
+    ret(890,44,960,200,'#1E2A31'); ret(924,44,927,200,'#B9C4CC');
+    // pintura
+    if(l.cor==='verde'){
+      poli([[1024,196],[1024,256],[620,256],[560,226]],C.faixa);
+      poli([[560,226],[620,256],[120,256],[60,238]],C.faixa);
+      poli([[1000,170],[470,150],[430,160],[960,190]],C.faixa);
+      poli([[980,186],[500,166],[470,172],[950,196]],C.faixa2);
+    } else {
+      ret(0,206,190,50,C.saia); ret(840,214,1024,42,C.saia);
+      poli([[150,232],[620,150],[700,150],[230,232]],C.faixa);
+      poli([[240,232],[700,158],[740,158],[290,232]],C.faixa2);
+    }
+    // número
+    c.fillStyle='#1B1B1B'; c.font='bold 46px Nunito, Arial, sans-serif'; c.textAlign='center'; c.textBaseline='alphabetic';
+    c.fillText(l.num,X(300),192);
+    // caixas das rodas
+    c.fillStyle='#2A2A2A'; [170,830].forEach(x=>{ c.beginPath(); c.arc(X(x),256,62,Math.PI,0); c.fill(); });
+  });
+}
+function texFrenteOnibus(l){
+  const C=COR_ONIBUS[l.cor];
+  return texCanvas(256,288,(c)=>{
+    c.fillStyle='#F6F6F2'; c.fillRect(0,0,256,288);
+    ledTexto(c,l.letreiro,10,8,236,40,l.letreiro.length>10?27:30);
+    c.fillStyle='#1E2A31'; c.fillRect(12,56,232,132);         // para-brisa
+    c.fillStyle='#46596A'; c.fillRect(20,64,104,116); c.fillRect(132,64,104,116);
+    c.fillStyle=C.saia; c.fillRect(0,222,256,66);              // para-choque colorido
+    c.fillStyle='#FFFFFF'; [[40,212],[216,212]].forEach(([x,y])=>{ c.beginPath(); c.arc(x,y,13,0,Math.PI*2); c.fill(); });
+    c.fillStyle='#1B1B1B'; c.font='bold 26px Nunito, Arial, sans-serif'; c.textAlign='center'; c.fillText(l.num,128,212);
+  });
+}
+function texTrasOnibus(l){
+  const C=COR_ONIBUS[l.cor];
+  return texCanvas(256,288,(c)=>{
+    c.fillStyle='#F6F6F2'; c.fillRect(0,0,256,288);
+    c.fillStyle='#26323B'; c.fillRect(24,30,208,110);
+    c.fillStyle=C.saia; c.fillRect(0,230,256,58);
+    c.fillStyle='#E53935'; c.fillRect(10,160,22,60); c.fillRect(224,160,22,60);
+    c.fillStyle='#1B1B1B'; c.font='bold 40px Nunito, Arial, sans-serif'; c.textAlign='center'; c.fillText(l.num,128,205);
+  });
+}
+function criarOnibus(l){
+  const g=new THREE.Group(); g.visible=false; scene.add(g);
+  contorno(malha(geoArred(5.6,1.5,1.3,0.12),toon(0xF4F4F0),g,0,1.13,0),0.03);
+  const ladoA=malha(new THREE.PlaneGeometry(5.5,1.44),new THREE.MeshBasicMaterial({map:texLateralOnibus(l,true)}),g,0,1.12,0.657,false);
+  const ladoB=malha(new THREE.PlaneGeometry(5.5,1.44),new THREE.MeshBasicMaterial({map:texLateralOnibus(l,false)}),g,0,1.12,-0.657,false); ladoB.rotation.y=Math.PI;
+  const frente=malha(new THREE.PlaneGeometry(1.24,1.44),new THREE.MeshBasicMaterial({map:texFrenteOnibus(l)}),g,2.807,1.12,0,false); frente.rotation.y=Math.PI/2;
+  const tras=malha(new THREE.PlaneGeometry(1.24,1.44),new THREE.MeshBasicMaterial({map:texTrasOnibus(l)}),g,-2.807,1.12,0,false); tras.rotation.y=-Math.PI/2;
+  contorno(bloco(1.3,0.22,0.95,toon(0xE4E4DE),g,-0.7,1.99,0,0.03,0.03),0.02);   // ar-condicionado
+  const rodas=[];
+  [[-1.75,0.6],[1.85,0.6],[-1.75,-0.6],[1.85,-0.6]].forEach(([x,z])=>{ const r=malha(new THREE.CylinderGeometry(0.34,0.34,0.24,16),toon(0x22252A),g,x,0.34,z); r.rotation.x=Math.PI/2; rodas.push(r); });
+  return {g,rodas,linha:l,ativo:false};
+}
+// ================= Ponto de ônibus em frente à adega =================
+const PONTO_X=3.9, PONTO_Z=7.25;
+const PARADA_ONIBUS_X=PONTO_X+2.22;   // ônibus no sentido da adega para com a porta da frente no abrigo
+(function(){
+  const g=new THREE.Group(); g.position.set(PONTO_X,0,PONTO_Z); scene.add(g);
+  const metal=toon(0x5B6770), teto=toon(0x2F7D4A), vidro=new THREE.MeshBasicMaterial({color:0xBFE3F2,transparent:true,opacity:0.45});
+  contorno(bloco(2.1,0.08,0.75,toon(0xBDB6A8),g,0,0.04,0,0.01,0.01),0.01);                     // piso
+  [[-0.95,-0.28],[0.95,-0.28],[-0.95,0.28],[0.95,0.28]].forEach(([x,z])=>bloco(0.07,1.9,0.07,metal,g,x,0.95,z,0.01,0.01));
+  contorno(bloco(2.3,0.1,0.95,teto,g,0,1.95,0.05,0.02,0.02),0.02);                            // cobertura
+  const v=malha(new THREE.BoxGeometry(1.86,1.3,0.03),vidro,g,0,1.05,-0.3,false);              // vidro do fundo
+  contorno(bloco(1.5,0.08,0.32,toon(0x8B6A43),g,0,0.48,-0.12,0.01,0.01),0.01);                // banco
+  [-0.6,0.6].forEach(x=>bloco(0.06,0.42,0.06,metal,g,x,0.24,-0.12,0.01,0.01));
+  // placa do ponto
+  bloco(0.06,2.2,0.06,metal,g,1.25,1.1,0.32,0.01,0.01);
+  const tx=texCanvas(128,128,(c)=>{ c.fillStyle='#1F5FA8'; c.fillRect(0,0,128,128); c.fillStyle='#fff'; c.font='bold 54px sans-serif'; c.textAlign='center'; c.textBaseline='middle'; c.fillText('🚌',64,52); c.font='bold 26px Nunito, sans-serif'; c.fillText('PONTO',64,104); });
+  const pl=malha(new THREE.PlaneGeometry(0.5,0.5),new THREE.MeshBasicMaterial({map:tx,side:THREE.DoubleSide}),g,1.25,2.15,0.34,false);
+  pl.rotation.y=-0.45;
+})();
+function desembarcarPassageiro(){
+  if(!document.body.classList.contains('jogando')||clientes.length>=MAX_CLIENTES_MIN) return false;
+  novoCliente(); const c=clientes[clientes.length-1];
+  c.g.position.set(PONTO_X-0.2+rnd(-0.15,0.15),0,PONTO_Z+0.45);
+  c.caminho=[new THREE.Vector3(PONTO_X-0.9,0,6.6),FORA_PORTA.clone(),PORTA.clone()];
+  c.deOnibus=true; return true;
+}
+const FROTA_ONIBUS=LINHAS_ONIBUS.map(criarOnibus);
+const FAIXAS_ONIBUS={ida:{z:10.8,dir:1},volta:{z:8.75,dir:-1}};   // mão brasileira: cada sentido do seu lado
+let tOnibus=6;
+function onibusNaRua(){ return FROTA_ONIBUS.some(o=>o.ativo); }
+function ruaLivreParaOnibus(){ return FORN.estado==='ocioso'&&!FORN.fila.length&&(typeof VAN==='undefined'||(VAN.estado==='ocioso'&&!(PDR().liberado&&VAN.t<4))); }
+function atualizarOnibus(dt){
+  FROTA_ONIBUS.forEach(o=>{ if(!o.ativo) return;
+    if(o.estado==='parado'){                                   // no ponto: passageiros descem
+      o.t-=dt; o.tDesc-=dt;
+      if(o.desc>0&&o.tDesc<=0){ o.tDesc=0.7; o.desc--; if(desembarcarPassageiro()) o.desceram++; }
+      if(o.t<=0&&o.desc<=0){ o.estado='andando'; if(o.desceram) pop(new THREE.Vector3(PONTO_X,2.4,PONTO_Z),'🚌 +'+o.desceram+' cliente'+(o.desceram>1?'s':''),''); }
+      return;
+    }
+    o.g.position.x+=o.dir*o.vel*dt; o.rodas.forEach(r=>r.rotation.y-=dt*o.vel*2.6);
+    if(o.dir<0&&!o.parou&&o.g.position.x<=PARADA_ONIBUS_X){ o.g.position.x=PARADA_ONIBUS_X; o.parou=true; o.estado='parado'; o.t=3; o.tDesc=0.6; o.desc=1+Math.floor(Math.random()*3); o.desceram=0; }
+    if(Math.abs(o.g.position.x)>19.5){ o.ativo=false; o.g.visible=false; } });
+  tOnibus-=dt;
+  if(tOnibus>0) return;
+  tOnibus=rnd(12,24);
+  if(!ruaLivreParaOnibus()) { tOnibus=rnd(3,6); return; }
+  const livres=Object.keys(FAIXAS_ONIBUS).filter(f=>!FROTA_ONIBUS.some(o=>o.ativo&&o.faixa===f));
+  const parados=FROTA_ONIBUS.filter(o=>!o.ativo);
+  if(!livres.length||!parados.length) return;
+  const f=pega(livres), F=FAIXAS_ONIBUS[f], o=pega(parados);
+  o.ativo=true; o.faixa=f; o.dir=F.dir; o.vel=rnd(5.5,7); o.parou=false; o.estado='andando';
+  o.g.position.set(-F.dir*19,0,F.z); o.g.rotation.y=F.dir>0?0:Math.PI; o.g.visible=true;
+}
+
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
   'Peguei meu cupom! 🎟️','Minha adega tá bombando! 🔥','Estoque cheio, tudo certo! 📦','Alguém tem uma dica? 🤔','Valeu, pessoal! 🙏','Rumo ao nível 25! 🚀',
@@ -3234,6 +3367,7 @@ function laco(){
     atualizarClientes(dt);
     atualizarFornecedor(dt);
     atualizarPdr(dt);
+    atualizarOnibus(dt);
     if(S.gerente&&!(G.estado!=='livre'&&G.g===gerente)){ tGerente+=dt; if(tGerente>2.5){ tGerente=0; if(pilhaValor>=1) coletar('gerente'); } gerente.rotation.y=Math.sin(performance.now()/900)*0.4; }
     if(S.mesas.garcom){ assentos.forEach(a=>{ if(a.estado==='sujo'){ a.t+=dt; if(a.t>2.5) recolherMesa(a.mesa,true); } }); }
     assentos.forEach(a=>{ if(a.estado==='sujo') a.nota.position.y=0.03+Math.abs(Math.sin(performance.now()/250))*0.04; });
