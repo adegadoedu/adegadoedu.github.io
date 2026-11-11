@@ -2982,109 +2982,156 @@ function atualizarOnibus(dt){
   o.g.position.set(-F.dir*19,0,F.z); o.g.rotation.y=F.dir>0?0:Math.PI; o.g.visible=true;
 }
 
-// ================= Música de fundo (chiptune original, composta no próprio jogo) =================
-const ESCALAS_MUS={maior:[0,2,4,5,7,9,11],menor:[0,2,3,5,7,8,10],mixo:[0,2,4,5,7,9,10]};
+// ================= Música de fundo (lo-fi de boteco / bossa, composta no próprio jogo) =================
+const NOTAS_PC={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
+const QUAL_MUS={maj7:[0,4,7,11],maj9:[0,4,7,11,14],m7:[0,3,7,10],m9:[0,3,7,10,14],'7':[0,4,7,10],'9':[0,4,10,14],'13':[0,4,10,14,21],'7b9':[0,4,10,13],'6':[0,4,7,9,14]};
+function acordeMus(txt){ const [n,q]=txt.split(':'); return {pc:NOTAS_PC[n],iv:QUAL_MUS[q]||QUAL_MUS.maj7}; }
 const TRILHAS={
-  dia:      {seed:7,   bpm:128, root:60, modo:'maior', prog:[0,5,3,4], bx:'oct',   k:'x...x...x...x...', s:'....x.......x...', h:'x.x.x.x.x.x.x.x.', arp:2, dens:0.55},
-  natal:    {seed:25,  bpm:108, root:67, modo:'maior', prog:[0,3,0,4], bx:'raiz',  k:'x.......x.......', s:'....x.......x...', h:'xxxxxxxxxxxxxxxx', arp:2, dens:0.45, sinos:true},
-  reveillon:{seed:31,  bpm:136, root:62, modo:'maior', prog:[0,4,5,3], bx:'oct',   k:'x...x...x...x...', s:'....x.......x.x.', h:'x.xxx.xxx.xxx.xx', arp:1, dens:0.6},
-  carnaval: {seed:12,  bpm:140, root:65, modo:'maior', prog:[0,4,4,0], bx:'marcha',k:'x.......x.......', s:'..x...x...x...xx', h:'x.x.x.x.x.x.x.x.', arp:2, dens:0.6},
-  junina:   {seed:6,   bpm:116, root:65, modo:'mixo',  prog:[0,3,4,0], bx:'baiao', k:'x..x....x..x....', s:'....x.......x...', h:'..x...x...x...x.', arp:4, dens:0.5, sanfona:true},
-  aniversario:{seed:3, bpm:124, root:64, modo:'maior', prog:[0,3,4,0], bx:'oct',   k:'x...x...x...x...', s:'....x.......x...', h:'x.x.x.x.x.x.x.x.', arp:1, dens:0.55},
-  black:    {seed:66,  bpm:118, root:57, modo:'menor', prog:[0,5,3,4], bx:'funk',  k:'x..x..x...x.....', s:'....x.......x...', h:'xxxxxxxxxxxxxxxx', arp:2, dens:0.5},
-  maes:     {seed:14,  bpm:100, root:65, modo:'maior', prog:[0,3,5,4], bx:'raiz',  k:'x.......x.......', s:'........x.......', h:'x...x...x...x...', arp:2, dens:0.4},
-  pais:     {seed:41,  bpm:104, root:62, modo:'maior', prog:[0,4,5,3], bx:'raiz',  k:'x.......x.......', s:'....x.......x...', h:'x...x...x...x...', arp:2, dens:0.42},
-  sextou:   {seed:88,  bpm:132, root:69, modo:'mixo',  prog:[0,6,3,0], bx:'oct',   k:'x...x...x...x...', s:'....x.......x...', h:'.x.x.x.x.x.x.x.x', arp:1, dens:0.6}
+  dia:        {bpm:84, progs:[['C:maj9','A:m9','D:m9','G:13'],['F:maj9','E:m7','D:m9','G:7b9']], baixo:'bossa', perc:'bossa', mel:'vibra'},
+  natal:      {bpm:80, progs:[['G:maj9','E:m9','A:m9','D:13'],['C:maj9','B:m7','A:m9','D:7b9']], baixo:'bossa', perc:'leve',  mel:'vibra', sinos:true},
+  reveillon:  {bpm:86, progs:[['D:maj9','B:m9','E:m9','A:13'],['G:maj9','F#:m7','E:m9','A:7b9']], baixo:'bossa', perc:'bossa', mel:'vibra', sinos:true},
+  carnaval:   {bpm:92, progs:[['F:6','D:7b9','G:m9','C:13'],['Bb:maj9','A:m7','G:m9','C:7b9']], baixo:'samba', perc:'samba', mel:'vibra'},
+  junina:     {bpm:88, progs:[['F:6','Bb:9','C:9','F:6'],['Bb:maj7','F:6','C:9','F:6']], baixo:'baiao', perc:'baiao', mel:'sanfona'},
+  aniversario:{bpm:86, progs:[['E:maj9','C#:m9','F#:m9','B:13'],['A:maj9','G#:m7','F#:m9','B:7b9']], baixo:'bossa', perc:'bossa', mel:'vibra', sinos:true},
+  black:      {bpm:82, progs:[['A:m9','D:m9','F:maj7','E:7b9'],['D:m9','G:13','C:maj9','E:7b9']], baixo:'bossa', perc:'bossa', mel:'vibra'},
+  maes:       {bpm:78, progs:[['F:maj9','D:m9','G:m9','C:13'],['Bb:maj9','A:m7','G:m9','C:7b9']], baixo:'bossa', perc:'leve',  mel:'vibra'},
+  pais:       {bpm:80, progs:[['D:maj9','G:maj9','E:m9','A:13'],['B:m9','E:m9','G:maj9','A:13']], baixo:'bossa', perc:'leve',  mel:'vibra'},
+  sextou:     {bpm:90, progs:[['A:9','D:9','A:9','E:9'],['D:9','D:9','A:9','E:7b9']], baixo:'samba', perc:'bossa', mel:'vibra'}
 };
-const BAIXOS={oct:[0,null,null,null,7,null,null,null,0,null,null,null,7,null,0,null], raiz:[0,null,null,null,null,null,null,null,4,null,null,null,null,null,null,null],
-  marcha:[0,null,null,null,4,null,null,null,0,null,null,null,4,null,null,null], baiao:[0,null,null,4,null,null,7,null,0,null,null,4,null,null,7,null],
-  funk:[0,null,null,0,null,null,7,null,null,0,null,null,5,null,6,null]};
-function rngMus(s){ return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
-const notaGrau=(cfg,grau)=>{ const e=ESCALAS_MUS[cfg.modo], n=e.length, o=Math.floor(grau/n), i=((grau%n)+n)%n; return cfg.root+12*o+e[i]; };
-function comporTrilha(cfg){
-  const r=rngMus(cfg.seed), barras=cfg.prog.length;
-  const frase=(fim)=>{
-    const out=new Array(barras*16).fill(null); let g=cfg.prog[0]+7;
-    for(let b=0;b<barras;b++){
-      const acd=cfg.prog[b]; let s=0;
-      while(s<16){
-        const dur=r()<cfg.dens?2:(r()<0.5?4:1);
-        if(r()>0.18||s===0){
-          if(s%4===0){ const alvos=[acd,acd+2,acd+4].map(x=>x+7*Math.round((g-x)/7)); g=alvos.reduce((a,x)=>Math.abs(x-g)<Math.abs(a-g)?x:a); }
-          else g+=[-2,-1,1,1,2,-1][Math.floor(r()*6)];
-          g=Math.max(3,Math.min(13,g)); out[b*16+s]={g,d:Math.min(dur,16-s)};
-        }
-        s+=dur;
-      }
-    }
-    if(fim){ const ult=(barras-1)*16; for(let i=ult;i<ult+16;i++) out[i]=null; out[ult]={g:cfg.prog[0]+7,d:8}; }
-    return out;
-  };
-  const A=frase(false), B=frase(false), Af=frase(true);
-  const A2=A.slice(); const ult=(barras-1)*16; for(let i=ult;i<ult+16;i++) A2[i]=Af[i];
-  return [A,A2,B,A2];
+// padrões em 16 passos por compasso (compassos pares e ímpares alternam)
+const COMP_MUS={bossa:[[0,3,6,10,13],[2,6,9,12]], leve:[[0,6,10],[2,8,12]], samba:[[0,3,6,8,11,14],[2,5,8,11,14]], baiao:[[0,3,8,11],[0,3,8,11]]};
+const BAIXO_MUS={bossa:{0:0,6:7,8:7,14:0}, samba:{0:0,4:7,8:0,12:7}, baiao:{0:0,3:7,6:12,8:0,11:7,14:12}};
+const PERC_MUS={bossa:{k:[0,6,8],rim:[0,3,6,10,12]}, leve:{k:[0,8],rim:[]}, samba:{k:[4,12],rim:[0,3,6,10,13]}, baiao:{k:[0,3,8,11],rim:[4,12]}};
+function rngMus(s){ s=s>>>0; return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
+const hzMus=m=>440*Math.pow(2,(m-69)/12);
+function voicingMus(ac){
+  let iv=ac.iv.filter(i=>i!==0); if(iv.length>3) iv=iv.filter(i=>i!==7);
+  return iv.map(i=>{ let m=48+((ac.pc+i)%12); while(m<57) m+=12; while(m>69) m-=12; return m; });
 }
-const MUS={ctx:null,master:null,pulso:null,pulso12:null,ruido:null,nivel:2,trilha:'',seq:null,cfg:null,passo:0,prox:0,timer:null,iniciada:false};
-const VOL_MUS=[0,0.045,0.09];                       // mudo, baixo, normal (mais baixo que os efeitos)
+function comporMelodia(prog,r){
+  const out=new Array(64).fill(null); let ant=72;
+  for(let b=0;b<4;b++){
+    if((b===1||b===3)&&r()<0.45) continue;                      // respiro: compasso só com acordes
+    const ac=acordeMus(prog[b]), pcs=ac.iv.map(i=>(ac.pc+i)%12);
+    let s=r()<0.5?0:2;
+    while(s<14){
+      const dur=[2,3,4,4,6][Math.floor(r()*5)];
+      if(r()<0.7){
+        const cands=[]; pcs.forEach(pc=>{ for(let m=64+((pc-64)%12+12)%12;m<=81;m+=12) cands.push(m); });
+        cands.sort((a,b)=>Math.abs(a-ant)-Math.abs(b-ant));
+        const m=cands[Math.min(cands.length-1,Math.floor(r()*r()*4))]; ant=m;
+        out[b*16+s]={m,d:Math.min(dur,16-s)};
+      }
+      s+=dur+(r()<0.3?2:0);
+    }
+  }
+  return out;
+}
+const MUS={ctx:null,master:null,filtro:null,ruido:null,nivel:1,trilha:'dia',cfg:null,passo:0,prox:0,timer:null,iniciada:false,estado:'pausa',pausaAte:0,totalPassos:0,ciclos:0,cicloAtual:-1,prog:null,mel:null,r:Math.random};
+const VOL_MUS=[0,0.035,0.07];                      // mudo, baixo, normal (abaixo dos efeitos sonoros)
 const ICONE_MUS=['🔇','🔉','🔊'];
-try{ const v=localStorage.getItem('adegaEdu.musica'); if(v!==null) MUS.nivel=Math.max(0,Math.min(2,+v)); }catch(e){}
-function ondaPulso(ctx,duty){ const n=32, re=new Float32Array(n), im=new Float32Array(n); for(let k=1;k<n;k++) im[k]=(2/(k*Math.PI))*Math.sin(k*Math.PI*duty); return ctx.createPeriodicWave(re,im); }
+try{ const v=localStorage.getItem('adegaEdu.musica2'); if(v!==null) MUS.nivel=Math.max(0,Math.min(2,+v)); }catch(e){}
+function montarCadeiaMus(c){
+  MUS.ctx=c; MUS.master=c.createGain(); MUS.master.gain.value=VOL_MUS[MUS.nivel]; MUS.master.connect(c.destination);
+  MUS.filtro=c.createBiquadFilter(); MUS.filtro.type='lowpass'; MUS.filtro.frequency.value=3200; MUS.filtro.Q.value=0.4; MUS.filtro.connect(MUS.master);
+  const b=c.createBuffer(1,Math.floor(c.sampleRate*0.5),c.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; MUS.ruido=b;
+}
+// ---------- instrumentos ----------
+function envMus(g,t,vol,ataque,meio,fim){ g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+ataque); g.gain.exponentialRampToValueAtTime(Math.max(0.0002,vol*0.35),t+meio); g.gain.exponentialRampToValueAtTime(0.0001,t+fim); }
+function pianoMus(f,t,dur,vol){   // piano elétrico
+  const c=MUS.ctx, g=c.createGain(), a=c.createOscillator(), b=c.createOscillator(), gb=c.createGain();
+  a.type='sine'; b.type='sine'; a.frequency.value=f; b.frequency.value=f*2; b.detune.value=5; gb.gain.value=0.22;
+  a.connect(g); b.connect(gb); gb.connect(g); g.connect(MUS.filtro); envMus(g,t,vol,0.012,0.35,dur+0.7);
+  a.start(t); b.start(t); a.stop(t+dur+0.8); b.stop(t+dur+0.8);
+}
+function vibraMus(f,t,dur,vol){   // vibrafone suave
+  const c=MUS.ctx, g=c.createGain(), o=c.createOscillator(), tr=c.createGain(), l=c.createOscillator(), lg=c.createGain();
+  o.type='sine'; o.frequency.value=f; l.frequency.value=4.5; lg.gain.value=0.25; tr.gain.value=0.75;
+  l.connect(lg); lg.connect(tr.gain); o.connect(tr); tr.connect(g); g.connect(MUS.filtro); envMus(g,t,vol,0.01,Math.max(0.3,dur*0.6),dur+1.0);
+  o.start(t); l.start(t); o.stop(t+dur+1.1); l.stop(t+dur+1.1);
+}
+function sanfonaMus(f,t,dur,vol){ // “sanfona” macia para o Arraiá
+  const c=MUS.ctx, g=c.createGain(), o=c.createOscillator(), fl=c.createBiquadFilter(), l=c.createOscillator(), lg=c.createGain();
+  o.type='sawtooth'; o.frequency.value=f; fl.type='lowpass'; fl.frequency.value=1300; l.frequency.value=5.2; lg.gain.value=f*0.01;
+  l.connect(lg); lg.connect(o.frequency); o.connect(fl); fl.connect(g); g.connect(MUS.filtro);
+  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol*0.55,t+0.07); g.gain.setValueAtTime(vol*0.5,t+dur*0.8); g.gain.linearRampToValueAtTime(0.0001,t+dur+0.15);
+  o.start(t); l.start(t); o.stop(t+dur+0.2); l.stop(t+dur+0.2);
+}
+function baixoMus(f,t,dur,vol){
+  const c=MUS.ctx, g=c.createGain(), o=c.createOscillator(), s=c.createOscillator(), gs=c.createGain();
+  o.type='triangle'; s.type='sine'; o.frequency.value=f; s.frequency.value=f; gs.gain.value=0.6;
+  o.connect(g); s.connect(gs); gs.connect(g); g.connect(MUS.filtro); envMus(g,t,vol,0.015,Math.max(0.2,dur*0.7),dur+0.25);
+  o.start(t); s.start(t); o.stop(t+dur+0.3); s.stop(t+dur+0.3);
+}
+function sinoMus(f,t,vol){
+  const c=MUS.ctx; [[1,1],[2.76,0.35]].forEach(([m,v])=>{ const g=c.createGain(), o=c.createOscillator(); o.type='sine'; o.frequency.value=f*m; o.connect(g); g.connect(MUS.filtro);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol*v,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+1.6); o.start(t); o.stop(t+1.7); });
+}
+function percMus(tipo,t,forca){
+  const c=MUS.ctx;
+  if(tipo==='k'){ const o=c.createOscillator(), g=c.createGain(); o.frequency.setValueAtTime(95,t); o.frequency.exponentialRampToValueAtTime(48,t+0.12); g.gain.setValueAtTime(0.32,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.18); o.connect(g); g.connect(MUS.filtro); o.start(t); o.stop(t+0.2); return; }
+  const s=c.createBufferSource(); s.buffer=MUS.ruido; s.playbackRate.value=0.8+Math.random()*0.4; const f=c.createBiquadFilter(), g=c.createGain();
+  if(tipo==='rim'){ f.type='bandpass'; f.frequency.value=2400; f.Q.value=5; g.gain.setValueAtTime(0.14,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.035); }
+  else if(tipo==='chiado'){ f.type='highpass'; f.frequency.value=2500; g.gain.setValueAtTime(0.012,t); g.gain.exponentialRampToValueAtTime(0.0005,t+0.006); }
+  else { f.type='highpass'; f.frequency.value=7500; g.gain.setValueAtTime(0.03*(forca||1),t); g.gain.exponentialRampToValueAtTime(0.0008,t+0.05); }
+  s.connect(f); f.connect(g); g.connect(MUS.master); s.start(t); s.stop(t+0.08);
+}
+// ---------- sessão: 2 a 3 minutos de música, depois um intervalo de silêncio ----------
+function novaSessaoMus(){
+  MUS.cfg=TRILHAS[MUS.trilha]||TRILHAS.dia; MUS.r=rngMus((Date.now()^(Math.random()*1e9))>>>0);
+  const dP=60/MUS.cfg.bpm/4; MUS.ciclos=Math.max(6,Math.round((130+MUS.r()*50)/(dP*64)));
+  MUS.totalPassos=MUS.ciclos*64+16; MUS.passo=0; MUS.prox=0; MUS.cicloAtual=-1; MUS.estado='tocando';
+}
+function tocarPassoMus(p,t){
+  const cfg=MUS.cfg, dP=60/cfg.bpm/4, ciclo=Math.floor(p/64), st=p%64, barra=Math.floor(st/16), s16=st%16;
+  if(ciclo!==MUS.cicloAtual){ MUS.cicloAtual=ciclo; MUS.prog=cfg.progs[[0,0,1,0][ciclo%4]]; MUS.mel=(ciclo===0||ciclo>=MUS.ciclos)?null:comporMelodia(MUS.prog,MUS.r); }
+  if(ciclo>=MUS.ciclos){                                  // final: um acorde que se esvai
+    if(st===0){ const ac=acordeMus(cfg.progs[0][0]); voicingMus(ac).forEach(m=>pianoMus(hzMus(m),t,3.2,0.1)); baixoMus(hzMus(36+ac.pc),t,3,0.32); }
+    return;
+  }
+  if(s16%2===1) t+=dP*0.12;                               // leve balanço
+  const ac=acordeMus(MUS.prog[barra]);
+  const estiloComp=cfg.perc==='leve'?'leve':(cfg.baixo==='baiao'?'baiao':(cfg.baixo==='samba'?'samba':'bossa'));
+  if(COMP_MUS[estiloComp][barra%2].includes(s16)) voicingMus(ac).forEach(m=>pianoMus(hzMus(m),t,dP*3,0.075));
+  const bx=BAIXO_MUS[cfg.baixo][s16]; if(bx!==undefined) baixoMus(hzMus(36+ac.pc+bx),t,dP*(s16===0?5:2.5),0.3);
+  const n=MUS.mel&&MUS.mel[st]; if(n) (cfg.mel==='sanfona'?sanfonaMus:vibraMus)(hzMus(n.m),t,n.d*dP,0.09);
+  const P=PERC_MUS[cfg.perc]; if(P.k.includes(s16)) percMus('k',t); if(P.rim.includes(s16)) percMus('rim',t);
+  percMus('sh',t,s16%4===2?1:0.55);
+  if(cfg.sinos&&s16===0&&MUS.r()<0.35){ const v=voicingMus(ac); sinoMus(hzMus(v[v.length-1]+24),t,0.05); }
+  if(MUS.r()<0.05) percMus('chiado',t);
+}
+function agendarMusica(){
+  if(!MUS.iniciada||MUS.ctx.state!=='running') return;
+  const c=MUS.ctx;
+  if(MUS.estado==='pausa'){ if(c.currentTime<MUS.pausaAte) return; novaSessaoMus(); }
+  const dP=60/MUS.cfg.bpm/4;
+  if(MUS.prox<c.currentTime-0.25) MUS.prox=c.currentTime+0.05;
+  while(MUS.estado==='tocando'&&MUS.prox<c.currentTime+0.4){
+    if(MUS.nivel>0) tocarPassoMus(MUS.passo,MUS.prox);
+    MUS.passo++; MUS.prox+=dP;
+    if(MUS.passo>=MUS.totalPassos){ MUS.estado='pausa'; MUS.pausaAte=MUS.prox+3+40+Math.random()*30; }
+  }
+}
 function iniciarMusica(){
   if(MUS.iniciada) return;
   try{
     ac=ac||new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume();
-    const c=MUS.ctx=ac; MUS.master=c.createGain(); MUS.master.gain.value=VOL_MUS[MUS.nivel]; MUS.master.connect(c.destination);
-    MUS.pulso=ondaPulso(c,0.25); MUS.pulso12=ondaPulso(c,0.125);
-    const b=c.createBuffer(1,c.sampleRate*0.5,c.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; MUS.ruido=b;
-    MUS.iniciada=true; trocarTrilha(true);
+    montarCadeiaMus(ac); MUS.trilha=trilhaDesejada(); MUS.iniciada=true; MUS.pausaAte=ac.currentTime+1.5;  // começa logo após o primeiro toque
     MUS.timer=setInterval(agendarMusica,25);
   }catch(e){}
 }
-function notaMus(freq,t,dur,onda,vol,vib){
-  const c=MUS.ctx, o=c.createOscillator(), g=c.createGain();
-  if(typeof onda==='string') o.type=onda; else o.setPeriodicWave(onda);
-  o.frequency.setValueAtTime(freq,t);
-  if(vib){ const l=c.createOscillator(), lg=c.createGain(); l.frequency.value=5.5; lg.gain.value=freq*0.012; l.connect(lg); lg.connect(o.frequency); l.start(t); l.stop(t+dur+0.05); }
-  g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+0.008); g.gain.setValueAtTime(vol*0.8,t+dur*0.6); g.gain.linearRampToValueAtTime(0.0001,t+dur);
-  o.connect(g); g.connect(MUS.master); o.start(t); o.stop(t+dur+0.02);
-}
-function batida(tipo,t){
-  const c=MUS.ctx;
-  if(tipo==='k'){ const o=c.createOscillator(), g=c.createGain(); o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(40,t+0.12); g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.14); o.connect(g); g.connect(MUS.master); o.start(t); o.stop(t+0.15); return; }
-  const s=c.createBufferSource(); s.buffer=MUS.ruido; const f=c.createBiquadFilter(), g=c.createGain();
-  if(tipo==='s'){ f.type='bandpass'; f.frequency.value=1800; g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.12); }
-  else { f.type='highpass'; f.frequency.value=MUS.cfg&&MUS.cfg.sinos?9000:7000; g.gain.setValueAtTime(MUS.cfg&&MUS.cfg.sinos?0.22:0.16,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.04); }
-  s.connect(f); f.connect(g); g.connect(MUS.master); s.start(t); s.stop(t+0.15);
-}
-const hzMus=m=>440*Math.pow(2,(m-69)/12);
-function tocarPasso(passo,t){
-  const cfg=MUS.cfg, seq=MUS.seq, barras=cfg.prog.length, porSecao=barras*16;
-  const sec=Math.floor(passo/porSecao)%seq.length, i=passo%porSecao, barra=Math.floor(i/16), st=i%16, acorde=cfg.prog[barra];
-  const dPasso=60/cfg.bpm/4;
-  const n=seq[sec][i];
-  if(n) notaMus(hzMus(notaGrau(cfg,n.g)+12),t,n.d*dPasso*0.95,cfg.sanfona?MUS.pulso:MUS.pulso,cfg.sanfona?0.16:0.14,cfg.sanfona);
-  const bx=BAIXOS[cfg.bx][st]; if(bx!==null&&bx!==undefined) notaMus(hzMus(notaGrau(cfg,acorde+bx)-24),t,dPasso*1.8,'triangle',0.32);
-  if(st%cfg.arp===0){ const tons=[0,2,4,7], k=(st/cfg.arp)%4; notaMus(hzMus(notaGrau(cfg,acorde+tons[k])+(cfg.sinos?24:12)),t,dPasso*0.9,MUS.pulso12,cfg.sinos?0.07:0.05); }
-  if(cfg.k[st]==='x') batida('k',t); if(cfg.s[st]==='x') batida('s',t); if(cfg.h[st]==='x') batida('h',t);
-}
-function agendarMusica(){
-  if(!MUS.iniciada||!MUS.cfg||MUS.ctx.state!=='running') return;
-  const dPasso=60/MUS.cfg.bpm/4;
-  if(MUS.prox<MUS.ctx.currentTime-0.25) MUS.prox=MUS.ctx.currentTime+0.05;   // ficou muito para trás: retoma sem tocar notas atrasadas
-  while(MUS.prox<MUS.ctx.currentTime+0.4){ if(MUS.nivel>0) tocarPasso(MUS.passo,MUS.prox); MUS.passo++; MUS.prox+=dPasso; }
-}
 function trilhaDesejada(){ const ev=typeof eventoAtual==='function'?eventoAtual():null; return ev&&TRILHAS[ev.id]?ev.id:'dia'; }
-function trocarTrilha(imediato){
-  const id=trilhaDesejada(); if(id===MUS.trilha&&!imediato) return;
-  const aplicar=()=>{ MUS.trilha=id; MUS.cfg=TRILHAS[id]; MUS.seq=comporTrilha(MUS.cfg); MUS.passo=0; MUS.prox=0; if(MUS.master) MUS.master.gain.setTargetAtTime(VOL_MUS[MUS.nivel],MUS.ctx.currentTime,0.3); };
-  if(imediato||!MUS.master){ aplicar(); return; }
-  MUS.master.gain.setTargetAtTime(0.0001,MUS.ctx.currentTime,0.25); setTimeout(aplicar,900);
+function trocarTrilha(){
+  const id=trilhaDesejada(); if(id===MUS.trilha) return;
+  MUS.trilha=id; if(!MUS.iniciada) return;
+  if(MUS.estado==='tocando'){ MUS.master.gain.setTargetAtTime(0.0001,MUS.ctx.currentTime,0.4);
+    setTimeout(()=>{ MUS.estado='pausa'; MUS.pausaAte=0; MUS.master.gain.setTargetAtTime(VOL_MUS[MUS.nivel],MUS.ctx.currentTime,0.3); },1600); }
 }
 function atualizarBotaoMusica(){ const b=$('#btnMusica'); if(b){ b.textContent=ICONE_MUS[MUS.nivel]; b.setAttribute('aria-label','Música: '+['desligada','baixa','normal'][MUS.nivel]); } }
 $('#btnMusica').addEventListener('click',e=>{
   e.stopPropagation(); iniciarMusica();
   MUS.nivel=(MUS.nivel+2)%3;                                   // normal → baixo → mudo → normal
-  try{ localStorage.setItem('adegaEdu.musica',String(MUS.nivel)); }catch(err){}
+  try{ localStorage.setItem('adegaEdu.musica2',String(MUS.nivel)); }catch(err){}
   if(MUS.master) MUS.master.gain.setTargetAtTime(VOL_MUS[MUS.nivel],MUS.ctx.currentTime,0.08);
   atualizarBotaoMusica();
 });
@@ -3092,7 +3139,7 @@ atualizarBotaoMusica();
 // os celulares só deixam tocar som depois do primeiro toque do jogador
 ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev,()=>{ if(!MUS.iniciada) iniciarMusica(); else if(MUS.ctx.state==='suspended'&&!document.hidden) MUS.ctx.resume(); },{passive:true}));
 document.addEventListener('visibilitychange',()=>{ if(!MUS.ctx) return; if(document.hidden) MUS.ctx.suspend(); else MUS.ctx.resume(); });
-setInterval(()=>{ if(MUS.iniciada) trocarTrilha(false); },5000);
+setInterval(()=>{ if(MUS.iniciada) trocarTrilha(); },5000);
 
 // ================= Papo da Adega (conversa rápida, ideias e chat) =================
 const FRASES_PAPO=['Boa noite, turma! 👋','Bom dia, pessoal! ☀️','Bati 1 milhão! 🎉','Bora pro top 10! 🏆','Entrega perfeita! 🛵','Quem tá jogando agora? 🙋',
